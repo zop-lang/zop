@@ -1,0 +1,142 @@
+notes:
+
+mascot: jit the rock (some cool, hip gen z rock)
+
+compile vs interpreted:
+- for efficiency reasons, it's recommend that you compile code for production
+- bedrock supports jitting, so you can just run it like an interpreted languages if you're prototyping (and it'll still be ~fast)
+    - jitting is less extreme, so we make no guarantees that there is no runtime error missed (depends on how good the jit ends up being)
+
+typing:
+- recommended to statically type so that jit has an easier time, e.g. x: int = 5
+    - note we do this colon notation so it's consistent with function parameter typing
+- dynamic typing is supported when prototyping, exactly like how it is in python. depends on how good jit is (funny reference)
+
+dependency management system:
+- just not whatever python has. i think rust has a pretty good backwards compatibility system?
+
+error-handling:
+- errors as values is a good idea
+    - should be very terse and simple to catch errors
+
+
+matmuls:
+- would really like MLIR to work its magic so that this language can be the new king of ML
+- should be as fast as assembly
+- IM WRITING THIS LANGUAGE TO WRITE MY OWN DEEP LEARNING LIBRARY IN IT (SORRY TENZOR)
+
+marketing:
+- literally pseudocode - it's that easy to learn
+- write code at the speed of thought with C-like performance
+
+stdlib:
+- print
+
+
+
+todos
+
+[] autozipped for loops
+[] 
+[] super thorough error trace messaging system (in color too!) like rust + "did you mean _?"
+[] rly good documentation so ppl can learn it quick and start using it right away!
+
+
+Syntax plan:
+
+For-loops:
+- Automatic zipping,
+
+# 
+for x, y, z in X, Y, Z
+
+
+Functions:
+
+fn get_spectral_filters x y z* a** {
+x = x.view(1, 1, K, 1)
+
+# this is a comment
+if x > 0 # parentheses are optional, so you could do: `if (x > 0)`
+	  if y > 0 # blocks are delineated using indents
+		do foo
+	 else # brackets are also optional, but it's clear we are in the else block here so we don't use it
+		 do bar
+else
+	something else
+}
+
+# semicolons are optional
+if foo
+    x;
+else
+    y
+
+# hello.bdr
+fn hello_world {
+    print "hello world" # print is a stdlib function
+}
+
+# the last statement gets auto-returned, like in Rust
+fn foo x y {
+    x + y # evaluates x + y and returns the result
+}
+
+
+Pointers:
+
+you can do this: ptr***
+or this: ptr*3
+
+
+
+Functional stuff for the functional nerds:
+
+functions are first-class citizens
+
+square x = x * x
+fn foo square x {
+    square x # parentheses are optional, since it's obvious the scope ends upon newline or semicolon
+}
+
+fn bar square y: list {
+    map square y
+}
+
+The only reason why we'd need immutability would be for shared/referenced memory. More to come on the fate of mut in bdr.
+
+
+Operator syntax:
+
+All the usual stuff. Not going to re-invent the wheel.
+
+Unlike Python, you can do x++ and ++x
+
+You can do ** for exponents
+infinities are expressed as \inf or -\inf
+
+total_loss <- add grad_loss total_loss # i like this <- syntax bc it's used in ML
+
+
+Arrays:
+
+There are no arrays! We call them tensors to keep full generality.
+
+x = [[1,2,3], [4,5,6]]
+
+There are also no such thing as tuples. Again, everything is a tensor. If you want the contents, unpack them:
+
+first_three, second_three = x
+one, two, three = first_three
+four, five, six = second_three
+
+in transitively,
+one, two, three, four, five, six = x # is this even possible to specify
+
+Mixed types:
+
+
+// comma denotes end of function name
+// new line denotes start of new block
+fn matmul, x y:
+    loop 0..x.len
