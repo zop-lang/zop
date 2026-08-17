@@ -1,11 +1,18 @@
 [package]
 name = "bedrock"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.95"
 
 [dependencies]
-logos = "0.14.0"
-regex = "1.10.4"
+cranelift-codegen = "=0.134.3"
+cranelift-frontend = "=0.134.3"
+cranelift-jit = "=0.134.3"
+cranelift-module = "=0.134.3"
+cranelift-native = "=0.134.3"
+cranelift-object = "=0.134.3"
+logos = "=0.16.1"
+melior = "=0.27.4"
 
 [[bin]]
 name = "bedrock"
