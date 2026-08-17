@@ -13,7 +13,8 @@ It requires both just-in-time (JIT) and ahead-of-time (AOT) compilation.
 Every gate must pass before work starts on a compiler written in Bedrock.
 
 **Language.** The core specification has no open decisions about syntax,
-types, compile-time evaluation, memory, errors, modules, or functions.
+types, compile-time evaluation, memory, errors, modules, packages, standard
+library boundaries, or functions.
 
 **Stability.** Source semantics, typed HIR, the runtime ABI, and backend
 contracts survive three consecutive releases without a breaking redesign.
@@ -25,8 +26,9 @@ cover the supported language. Fuzzing cannot crash the compiler on user input.
 substantial systems program, and a tensor library or framework. All four
 remain in use across two releases.
 
-**Toolchain.** Modules, strings, collections, files, diagnostics, testing,
-foreign calls, and deterministic builds are production-ready.
+**Toolchain.** The [standard library](stdlib.md),
+[package manager](package-management.md), modules, diagnostics, foreign calls,
+and deterministic builds are production-ready.
 
 **Operations.** Stage 0 builds from pinned sources on every supported host. It
 remains auditable without network access.

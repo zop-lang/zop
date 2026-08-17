@@ -39,6 +39,8 @@ Cranelift intermediate representation (CLIF).
 | --- | --- | --- |
 | [Language](language.md) | Source-level behavior and open language decisions | Compiler representation |
 | [Compile-time values](compile-time.md) | Pure evaluation, `known`, and specialization | Runtime configuration |
+| [Standard library](stdlib.md) | Core types, algorithms, capabilities, and official-package boundary | Application frameworks |
+| [Packages and builds](package-management.md) | Imports, dependency resolution, hermetic builds, and publishing | Language semantics |
 | [Frontend](frontend.md) | Source text through typed HIR | Optimization and target layout |
 | [Memory](memory.md) | Ownership, borrowing, `Mem`, and managed regions | Storage implementation |
 | [Input and output](io.md) | Explicit capabilities, buffering, and cancellation | Device services |

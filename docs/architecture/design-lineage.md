@@ -237,6 +237,38 @@ or pedagogical error handling.
 
 Source: [LLVMlite reference interpreter](https://github.com/cos320/hw2-llvmlite-jeff-windsor/blob/master/lib/ll/llinterp.ml).
 
+## Standard-library layering
+
+Rust separates a platform-independent `core`, allocation-backed collections,
+and hosted standard-library services. Zig demonstrates explicit allocation and
+I/O capabilities inside a cross-platform standard library. Go demonstrates the
+ergonomic value and long-term compatibility cost of a broad standard library.
+
+Bedrock adopts a small mandatory core, capability-aware standard modules, and
+independently versioned official packages. Universal algorithms such as binary
+search belong in `core`; neural-network frameworks do not.
+
+Sources: [Rust `core`](https://doc.rust-lang.org/core/),
+[Rust `alloc`](https://doc.rust-lang.org/stable/alloc/),
+[Zig memory](https://ziglang.org/documentation/master/#Memory), and
+[Go standard library](https://pkg.go.dev/std).
+
+## Packages and builds
+
+Cargo demonstrates manifest and lockfile ergonomics. Go modules demonstrate
+single-version resolution, checksums, and vendoring. Zig demonstrates
+content-addressed package sources and a concurrent cross-target build graph.
+
+Bedrock adopts those properties with a stricter boundary: dependency commands
+may use the network, but compilation is hermetic. Packages cannot run
+unrestricted build scripts, and mission builds can reconstruct the complete
+toolchain from vendored immutable inputs.
+
+Sources: [Cargo lockfiles](https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html),
+[Go modules](https://go.dev/ref/mod),
+[Zig package hashing](https://ziglang.org/download/0.16.0/release-notes.html#build-system),
+and [Zig build system](https://ziglang.org/learn/build-system/).
+
 ## Why the composition fits Bedrock
 
 No individual influence satisfies all Bedrock goals:
@@ -277,6 +309,8 @@ Bedrock composes the influences into one contract:
 8. MLIR tensor semantics, buffer reuse, and GPU lowering.
 9. Cranelift development speed and native CPU artifacts.
 10. An independent interpreter that checks every backend.
+11. A layered standard library with correct universal algorithms.
+12. Hermetic packages that rebuild from immutable offline inputs.
 
 The boundaries are the advantage. Each component owns the problem it solves,
 and no component silently substitutes for another when it fails.
