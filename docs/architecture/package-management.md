@@ -41,13 +41,13 @@ defines one module. Package tools reject ambiguous file-to-module mappings.
 
 ## Imports
 
-Imports bind names during compilation:
+Imports use familiar Python spelling, but bind names only during compilation:
 
 ```bedrock
-use std.tensor
-use geometry.rotation
-use geometry.rotation as rotation
-use geometry.rotation: Quaternion, rotate
+import std.tensor
+import geometry.rotation
+import geometry.rotation as rotation
+from geometry.rotation import Quaternion, rotate
 ```
 
 The import contract is strict:
