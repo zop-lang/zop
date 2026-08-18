@@ -1,7 +1,7 @@
 # Explicit input and output
 
 Every operation that may block or observe nondeterminism requires an explicit
-input/output (I/O) capability named `Io`. Bedrock has no ambient global I/O
+input/output (I/O) capability named `Io`. Zop has no ambient global I/O
 runtime.
 
 > **Status:** This page defines target semantics. Names and example syntax are
@@ -27,12 +27,12 @@ require `Io`.
 The process entrypoint constructs one I/O implementation and passes it through
 the application. Functions accept only the capabilities they need.
 
-```bedrock
+```zop
 fn main init: Process -> App or fails with RunError
     return try to run init.io, init.mem
 
 fn run io: Io, mem: Mem -> App or fails with RunError
-    config = try to read_config io, mem, path: "bedrock.toml"
+    config = try to read_config io, mem, path: "zop.toml"
     return try to build io, mem, config
 ```
 
@@ -71,7 +71,7 @@ runtime-selected boundary.
 
 Callers supply or explicitly allocate buffers:
 
-```bedrock
+```zop
 fn copy(
     io: Io,
     mut src: Reader,
@@ -111,24 +111,30 @@ closes them or transfers ownership; destructors never hide a fallible close.
 
 ## Asynchrony and cancellation
 
-Asynchrony belongs to the `Io` library, not to a second class of functions.
-Ordinary `fn` declarations may submit work when they receive `Io`.
+Asynchrony belongs to `Io` and `std.task`, not to a second class of functions.
+Ordinary `fn` declarations may submit work when they receive `Io`. New work
+belongs to a task group by default:
 
-```bedrock
-future = io.async fetch, io, url
+```zop
+concurrent io
+    request = spawn fetch io, url
 
-do_cpu_work
+    do_cpu_work
 
-response = future.await io
+    response = try to await request
 ```
 
-The exact call syntax is provisional. An owned future must be awaited or
-canceled before it is dropped. Cancellation is a request and may be rejected or
-race with completion; the result reports which outcome occurred.
+The exact call syntax is provisional. An owned task must be joined, canceled,
+or transferred to a longer-lived owner before it is dropped. Cancellation is a
+request and may be rejected or race with completion; the result reports which
+outcome occurred.
 
 An implementation without concurrent execution may complete submitted work
 immediately. This preserves program semantics and remains the behavior of that
 selected implementation, not a fallback to another runtime.
+
+The [concurrency contract](concurrency.md) defines task scopes, ownership
+transfer, channels, selection, scheduling, threads, locks, and atomics.
 
 ## Effects and kernels
 

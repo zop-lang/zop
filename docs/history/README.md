@@ -1,10 +1,11 @@
 # History
 
-[`whitepaper.txt`](whitepaper.txt) preserves the original Bedrock language notes
-verbatim. It records the idea that preceded the current language and compiler
-architecture.
+[`whitepaper.txt`](whitepaper.txt) preserves the original language notes
+verbatim. It is historical, not authoritative.
 
-The file is historical, not authoritative. Current contracts live in
+[`original.webp`](original.webp) preserves the original project mark.
+
+Current contracts live in
 [`docs/architecture`](../architecture/README.md).
 
 The archived source has this SHA-256 digest:

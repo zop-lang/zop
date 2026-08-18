@@ -38,7 +38,7 @@ A failed `kn` compilation never retries on the CPU.
 The ideal frontend makes placement and transfers concise but visible. This is
 design syntax, not an accepted grammar.
 
-```bedrock
+```zop
 kn matmul a: f32[m, k], b: f32[k, n] -> f32[m, n]
     a @ b
 
@@ -71,7 +71,7 @@ an unknown output size fails until the language defines dynamic device `Mem`.
 
 Tensor syntax does not hide hardware when a kernel needs direct control.
 
-```bedrock
+```zop
 kn saxpy x: global f32[n], mut y: global f32[n], a: f32
     i = block.id.x * block.size.x + thread.id.x
 
@@ -86,7 +86,7 @@ a legal `kn` is a compile error.
 A kernel parameter uses `known` only when its numerical value must change
 generated device code:
 
-```bedrock
+```zop
 kn blocked_matmul a: f32[m, k], b: f32[k, n], tile: known int
 ```
 
@@ -133,7 +133,7 @@ flowchart TD
     tensor --> cute["CuTe layout IR"]
     cute --> nvvm["GPU + NVVM lowering"]
     nvvm --> image["PTX or cubin"]
-    cranelift --> bundle["Bedrock executable"]
+    cranelift --> bundle["Zop executable"]
     image --> bundle
 ```
 
@@ -148,13 +148,13 @@ embedded in or shipped beside the host object.
 
 ## Upstream relationship
 
-Bedrock should consume and co-develop NVIDIA's
+Zop should consume and co-develop NVIDIA's
 [CuTe IR dialect](https://github.com/NVIDIA/cutlass/pull/3426) upstream. It
 should not fork the layout algebra or hide a private replacement behind the
 same syntax.
 
 The current CuTe IR contribution covers layout algebra rather than the full
-copy, matrix-multiply, and tensor-compute stack. Bedrock GPU support therefore
+copy, matrix-multiply, and tensor-compute stack. Zop GPU support therefore
 remains experimental until every required operation has an upstream lowering
 and a hardware-backed test.
 
@@ -162,7 +162,7 @@ and a hardware-backed test.
 
 The first complete proof must:
 
-- Express matrix multiplication using only Bedrock source.
+- Express matrix multiplication using only Zop source.
 - Compile `fn` host code with Cranelift.
 - Compile `kn` device code to an NVIDIA GPU image.
 - Run on real GPU hardware.

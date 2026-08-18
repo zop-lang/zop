@@ -1,20 +1,27 @@
 # Intermediate representations
 
-Bedrock uses several intermediate representations because tensor optimization
-and machine-code generation need different information. High-level
-intermediate representation (HIR) preserves Bedrock semantics. Multi-Level
-Intermediate Representation (MLIR) exposes tensor operations to optimization.
-Cranelift intermediate representation (CLIF) describes central processing unit
-(CPU) code.
+Zop uses several intermediate representations because document object model
+(DOM) handles, tensor optimization, and machine-code generation need different
+information. High-level intermediate representation (HIR) preserves Zop
+semantics. Browser IR preserves Web host structure. Multi-Level Intermediate
+Representation (MLIR) exposes tensor operations to optimization. Cranelift
+intermediate representation (CLIF) describes central processing unit (CPU)
+code.
 
 ## Layers
 
+<!-- markdownlint-disable MD013 -->
+
 | Layer | Carries | Producer | Consumer |
 | --- | --- | --- | --- |
-| Typed HIR | Bedrock semantics | Frontend | MLIR emitter |
+| Typed HIR | Zop semantics | Frontend | Target placement |
+| Browser IR | DOM objects, effects, modules, and updates | Target placement | ECMAScript optimizer |
+| ECMAScript AST | Final JavaScript structure and source origins | ECMAScript optimizer | Printer |
 | High-level MLIR | Tensor operations | MLIR emitter | MLIR passes |
 | CLIF-ready MLIR | Control flow and memory | MLIR passes | Translator |
 | CLIF | CPU operations and native calls | Translator | Cranelift |
+
+<!-- markdownlint-enable MD013 -->
 
 ## Implemented bootstrap
 
@@ -29,18 +36,26 @@ This path does not parse textual MLIR and does not bypass MLIR with a second HIR
 lowering. It has no tensor passes, bufferization, control-flow lowering, or
 reference interpreter yet.
 
+The initial JavaScript path lowers the same typed HIR directly to an ECMAScript
+abstract syntax tree. Its precedence-aware printer emits stable internal names,
+compact floating-point literals, explicit exports, and no runtime helper. Typed
+constant folding and effect-aware dead-expression removal run before printing.
+This path proves scalar target emission; it does not yet contain browser IR,
+DOM operations, source maps, target-region placement, or a general optimization
+pipeline.
+
 High-level MLIR uses standard `func`, `arith`, `math`, `tensor`, `linalg`, and
-`scf` dialects. A dialect is a related family of MLIR operations. Bedrock adds
+`scf` dialects. A dialect is a related family of MLIR operations. Zop adds
 its own dialect only when no standard operation can preserve required language
 semantics.
 
 CLIF-ready MLIR is a pseudo-dialect: a documented set of upstream operations,
 not a new namespace. Its verifier registers only the permitted dialects. Any
-high-level Bedrock operation that crosses this boundary fails immediately.
+high-level Zop operation that crosses this boundary fails immediately.
 
 ## Tensor types
 
-Bedrock tensor types map directly to ranked MLIR tensors:
+Zop tensor types map directly to ranked MLIR tensors:
 
 ```text
 f32[2, 3]  -> tensor<2x3xf32>
@@ -89,6 +104,13 @@ backend runs. This process is called bufferization.
 
 MLIR's LLVM dialect is not part of this pipeline. Lowering to LLVM IR would
 leave Cranelift without an input it can consume.
+
+Browser lowering branches from typed HIR. It does not round-trip DOM handles,
+events, strings, promises, or modules through numeric MLIR. A deterministic
+placement pass may send a self-contained numeric region through MLIR to a
+WebAssembly island while the surrounding control and DOM work remain in
+browser IR. The [web](web.md) and [performance](performance.md) contracts define
+that boundary.
 
 ## Future tail-call lowering
 

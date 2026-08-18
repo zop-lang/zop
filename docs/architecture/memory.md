@@ -1,6 +1,6 @@
 # Memory management
 
-Bedrock uses single-owner values, checked borrowing, and deterministic
+Zop uses single-owner values, checked borrowing, and deterministic
 destruction. The core language does not require garbage collection.
 
 > **Status:** This page defines target semantics. The example keywords are
@@ -18,7 +18,7 @@ reuse storage only when the language contract proves that reuse unobservable.
 request storage. `alloc` is an operation on that value, not the name of the
 capability.
 
-```bedrock
+```zop
 fn zeros mem: Mem, count: int -> f32[count]
     values = mem.alloc f32, count
     values.fill 0
@@ -41,7 +41,7 @@ Different `Mem` implementations may provide general heap storage, arenas,
 pools, mapped storage, device storage, accounting, or leak checking. A function
 accepts `mem: Mem` when it needs memory policy and omits it when it does not.
 
-Bedrock has no ambient global `Mem`.
+Zop has no ambient global `Mem`.
 
 ## Ownership rules
 
@@ -49,7 +49,7 @@ Every resource-owning value has one owner. `give` transfers that ownership and
 invalidates the old binding. A value is destroyed when its owner leaves scope
 unless it was given or explicitly dropped.
 
-Bedrock permits either one mutable borrow or any number of immutable borrows.
+Zop permits either one mutable borrow or any number of immutable borrows.
 Every borrow must end before its owner is destroyed or given.
 
 Small scalar types may opt into implicit copying. Heap-owning and
@@ -87,20 +87,20 @@ Ordinary parameters borrow immutably. `mut` grants an exclusive mutable borrow.
 
 The declaration describes the call protocol:
 
-```bedrock
+```zop
 fn enqueue give value: Tensor
 ```
 
 A caller writes `give` when transferring a named value:
 
-```bedrock
+```zop
 enqueue give tensor
 ```
 
 The source binding is invalid after `give`. A fresh temporary transfers
 automatically because no source binding remains available:
 
-```bedrock
+```zop
 enqueue make_tensor()
 ```
 
@@ -118,7 +118,7 @@ A tensor owns its storage. Giving a tensor transfers its descriptor, not the
 underlying elements. A tensor view borrows storage and cannot outlive the source
 tensor.
 
-```bedrock
+```zop
 fn row values: f32[m, n], index: int -> view f32[n]
     values[index]
 ```
@@ -135,13 +135,13 @@ constraint.
 
 Pure tensor expressions have value semantics:
 
-```bedrock
+```zop
 c = a @ b
 ```
 
 `c` is logically a new tensor. The compiler may donate or reuse an input buffer
 only when that input is uniquely owned and dead after the operation. Mutation
-requires a mutable borrow. Bedrock does not perform implicit deep copies or
+requires a mutable borrow. Zop does not perform implicit deep copies or
 copy-on-write.
 
 Static shape and layout data stay in types. Runtime descriptors contain the

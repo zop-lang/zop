@@ -12,7 +12,7 @@ representation.
 `.` selects a member. It never invokes that member. Whitespace or parentheses
 start an argument list.
 
-```bedrock
+```zop
 mem.kind
 mem.alloc f32, count
 mem.alloc(f32, count)
@@ -27,7 +27,7 @@ colon follows the callable. A zero-argument call always requires `()`.
 Parentheses are optional for a single-line call and required for a multiline
 call. Both forms have the same semantics:
 
-```bedrock
+```zop
 matmul left, right
 matmul(left, right)
 ```
@@ -37,7 +37,7 @@ tuple. `f((x, y))` passes one tuple while `f(x, y)` passes two arguments.
 
 Member selection binds tighter than function application:
 
-```bedrock
+```zop
 print mem.kind
 mem.alloc f32, count
 ```
@@ -45,7 +45,7 @@ mem.alloc f32, count
 Each argument is a complete expression. It continues through infix operators
 until a comma, newline, or closing delimiter:
 
-```bedrock
+```zop
 print x + y
 (print x) + y
 ```
@@ -55,7 +55,7 @@ Indexing and member selection remain part of the current argument.
 
 Nested calls require grouping when their boundary would be ambiguous:
 
-```bedrock
+```zop
 print (mem.alloc f32, count)
 ```
 
@@ -65,13 +65,13 @@ The parser does not consult types to decide where a call begins or ends.
 
 Commas also separate parameters. Short declarations omit parentheses:
 
-```bedrock
+```zop
 fn read_config io: Io, mem: Mem, path: str -> Config or fails with LoadError
 ```
 
 Multiline parameter lists require parentheses and accept a trailing comma:
 
-```bedrock
+```zop
 fn read_config(
     io: Io,
     mem: Mem,
@@ -86,7 +86,7 @@ follows the function name. `->` introduces the success type.
 `known` follows the colon because it qualifies when a parameter value becomes
 available:
 
-```bedrock
+```zop
 kn blocked_matmul a: f32[m, k], b: f32[k, n], tile: known int
 ```
 
@@ -99,8 +99,8 @@ callable's function type. See the
 
 `label: value` supplies an argument by parameter name:
 
-```bedrock
-config = read_config io, mem, path: "bedrock.toml"
+```zop
+config = read_config io, mem, path: "zop.toml"
 ```
 
 Positional arguments precede named arguments. An argument cannot be supplied
@@ -147,7 +147,7 @@ They satisfy one callable type contract without sharing one machine layout.
 
 A direct method call needs no bound-method object:
 
-```bedrock
+```zop
 mem.free buffer
 ```
 
@@ -159,7 +159,7 @@ Mem.free(&mem, buffer)
 
 Storing the member creates a bound callable:
 
-```bedrock
+```zop
 release = mem.free
 release buffer
 ```

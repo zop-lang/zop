@@ -15,9 +15,19 @@ assignments are covered end to end. Typed just-in-time (JIT) invocation supports
 zero, one, or two `i64` arguments. It checks the function signature before
 entering its isolated unsafe call boundary.
 
-Compilation targets the current host. `bedrock mlir` prints verified MLIR and
-`bedrock object` writes a native object. Unsupported MLIR operations and types
+Compilation targets the current host. `zop mlir` prints verified MLIR and
+`zop object` writes a native object. Unsupported MLIR operations and types
 fail with structured diagnostics; the compiler does not switch backends.
+
+`zop javascript` lowers typed scalar high-level intermediate representation
+(HIR) to a small ECMAScript abstract syntax tree and prints a deterministic
+module. The implemented slice supports host functions over `i32`, `f64`,
+`bool`, string, and unit values. It uses `Math.imul` and explicit 32-bit
+coercion for exact `i32` arithmetic. It rejects `i64`, `f32`, unchecked
+division, and kernels instead of selecting a slower or semantically weaker
+representation. Pure scalar constants fold while type information remains
+available. Unused pure expressions disappear, but any nested call remains
+because calls are effectful until proven otherwise.
 
 ## Contract
 
@@ -87,9 +97,14 @@ verification, and target error variants remain required before the backend
 contract is complete.
 
 The first implementation targets the current host CPU. Cross-compilation
-starts after Bedrock defines its data layout and runtime ABI. A future GPU
+starts after Zop defines its data layout and runtime ABI. A future GPU
 backend is a separate target with its own legal IR, not a fallback for failed
 CPU compilation.
+
+The [browser backend](web.md) is also separate. It branches from typed HIR to
+preserve DOM objects, strings, promises, and events in optimized ECMAScript.
+Self-contained numeric regions may lower through MLIR to WebAssembly. Cranelift
+emits native machine code; it does not emit either browser artifact.
 
 ## GPU direction
 
@@ -98,10 +113,10 @@ candidate lowering target for device layouts. It models hierarchical layout
 algebra, tiling, partitioning, static and dynamic layout data, and lowering
 through NVVM to GPU binaries. It does not yet model the full tensor-compute,
 copy, or matrix-multiply instruction stack, so it is a component rather than a
-complete Bedrock GPU backend.
+complete Zop GPU backend.
 
 The [`fn` and `kn` contract](gpu.md) defines the aspirational source model,
-kernel boundary, runtime calls, and full backend trace. Bedrock owns language
+kernel boundary, runtime calls, and full backend trace. Zop owns language
 semantics and kernel extraction. It does not reimplement CuTe layout algebra.
 
 MLIR, Melior, Cranelift, CUTLASS, and CuTe IR revisions are pinned together.

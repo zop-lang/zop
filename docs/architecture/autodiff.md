@@ -1,6 +1,6 @@
 # Automatic differentiation
 
-Bedrock treats automatic differentiation (autodiff) as a compiler
+Zop treats automatic differentiation (autodiff) as a compiler
 transformation over typed tensor programs. It does not attach an ambient tape
 or mutable gradient field to every tensor.
 
@@ -11,7 +11,7 @@ or mutable gradient field to every tensor.
 
 An autodiff request is explicit:
 
-```bedrock
+```zop
 loss, grads = value and grad train_step, model, batch
 ```
 

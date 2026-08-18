@@ -1,16 +1,18 @@
 # Standard library
 
-Bedrock ships a small mandatory core and a modular standard library. The core
+Zop ships a small mandatory core and a modular standard library. The core
 defines contracts that every target needs. Standard modules add allocation,
 input/output, concurrency, tensors, testing, and platform integration through
 explicit capabilities.
 
 > **Status:** This page defines target semantics. The Rust bootstrap does not
-> implement Bedrock modules or a Bedrock standard library yet.
+> implement Zop modules or a Zop standard library yet.
 
 ## Boundary
 
 The distribution has three rings:
+
+<!-- markdownlint-disable MD013 -->
 
 | Ring | Versioning | Purpose |
 | --- | --- | --- |
@@ -18,11 +20,15 @@ The distribution has three rings:
 | Official packages | Independent releases | Maintained batteries that may evolve faster |
 | Community packages | Independent releases | Frameworks, applications, and domain libraries |
 
+<!-- markdownlint-enable MD013 -->
+
 The standard library prevents foundational types and protocols from
 fragmenting across packages. It does not select one application framework for
 the ecosystem.
 
 ## Modules
+
+<!-- markdownlint-disable MD013 -->
 
 | Module | Owns | Required capability |
 | --- | --- | --- |
@@ -34,7 +40,10 @@ the ecosystem.
 | `std.sync` | Threads, locks, events, semaphores, and atomics | `Io` for blocking operations |
 | `std.gpu` | Device identity, address spaces, barriers, atomics, and kernel operations | `kn` only |
 | `std.sys` | Unsafe pointers, foreign interfaces, volatile access, and application binary interfaces (ABIs) | `unsafe` |
-| `std.test` | Assertions, fixtures, property tests, fuzzing, and benchmarks | Test builds |
+| `core.test` | Allocation-free expectations, comparisons, failures, and caller locations | Test builds |
+| `std.test` | Test capabilities, temporary resources, captured I/O, clocks, entropy, and process isolation | Test builds |
+
+<!-- markdownlint-enable MD013 -->
 
 Imports do not grant a capability. A function must still receive `Mem` or `Io`,
 and a device operation remains illegal outside a compatible `kn`.
@@ -154,7 +163,7 @@ optimizers, training loops, checkpoint policy, distributed execution,
 mixed-precision policy, datasets, quantization, and model zoos evolve too
 quickly for the compiler's compatibility promise.
 
-Bedrock may maintain a reference framework as an independently versioned
+Zop may maintain a reference framework as an independently versioned
 official package. Community frameworks compete on design while sharing the
 same tensors, autodiff, kernels, placement, serialization building blocks, and
 profiling hooks.
@@ -171,16 +180,31 @@ The first implementations are threaded and deterministic test input/output.
 Evented implementations follow only after the same semantic suite passes and
 benchmarks justify their complexity.
 
+## Testing
+
+The language and compiler discover test declarations. `core.test` supplies only
+the allocation-free assertion contract needed on every target. `std.test`
+supplies hosted resources through an explicit `Test` capability. The default
+runner belongs to the toolchain rather than the standard library so another
+runner can implement the same versioned manifest and event protocols.
+
+Property testing, snapshots, rich matchers, browser fixtures, and service
+fixtures are official or community packages. Coverage-guided fuzzing and
+benchmark measurement are toolchain modes because they require compiler
+instrumentation and execution control. The [testing contract](testing.md)
+defines discovery, isolation, runner interoperability, and rationale.
+
 ## Official packages
 
 Broad batteries ship outside the standard library under independent versions:
 
 ```text
-bedrock.json
-bedrock.http
-bedrock.crypto
-bedrock.image
-bedrock.nn
+zop.json
+zop.http
+zop.crypto
+zop.image
+zop.nn
+zop.web
 ```
 
 Official packages receive first-party maintenance and documentation. They do
@@ -188,9 +212,14 @@ not inherit the compiler's release cadence or permanent compatibility burden.
 The [package contract](package-management.md) pins them like any other
 dependency.
 
+`zop.web` contains generated browser bindings and the support used by
+emitted ECMAScript, WebAssembly islands, and WebGPU kernels. Unused support
+emits no code. Frontend frameworks remain independently versioned packages.
+The [web target contract](web.md) defines that boundary.
+
 ## Compiler integration
 
-The public standard library is ordinary Bedrock source wherever possible.
+The public standard library is ordinary Zop source wherever possible.
 Private intrinsics exist only when code must communicate semantics that
 ordinary source cannot preserve. Intrinsics are not importable by applications.
 

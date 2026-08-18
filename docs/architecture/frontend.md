@@ -45,6 +45,8 @@ Valid HIR has these properties:
   a concrete type.
 - Ambiguous inference produces a diagnostic, not a dynamic value.
 - Every annotation is proven or rejected.
+- Every named function parameter has an explicit type and ownership mode.
+- Every exported function has explicit parameter, success, and error types.
 - Every runtime type, shape, or placement check introduced by dynamic code
   traces to an explicit dynamic source construct.
 - Tensor expressions record rank and every statically known dimension.
@@ -108,6 +110,12 @@ constructs instead produce explicit runtime values, checks, and typed failure
 paths. The compiler never changes a static value into a dynamic value to make a
 program compile.
 
+Inference is bidirectional and local to the current declaration. Named
+parameters provide input types; expected types flow into literals, closures,
+calls, and block results; synthesized types flow outward. Local bindings are
+not generalized implicitly. Generic declarations are explicit even when their
+arguments infer at call sites.
+
 The parser distinguishes member selection from invocation without consulting
 types. Name resolution later classifies fields, methods, module functions, and
 callable fields according to the [callables contract](callables.md).
@@ -132,3 +140,15 @@ counter, so compilation order does not change the IR.
 Diagnostics name the failed rule and point to the source range that violated
 it. Later stages may attach more context, but they do not reinterpret an
 invalid frontend result.
+
+## Required inference tests
+
+- Infer a uniquely constrained local binding without an annotation.
+- Reject an ambiguous local with every conflicting constraint in the diagnostic.
+- Require types and ownership modes on named function parameters.
+- Require explicit success and error types on exported functions.
+- Require a return type before checking a recursive function body.
+- Infer a closure parameter only from one expected callable type.
+- Reject implicit polymorphic generalization of a local binding.
+- Infer call-site arguments for an explicitly declared generic.
+- Produce identical HIR facts from equivalent inferred and annotated source.

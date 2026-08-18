@@ -1,10 +1,10 @@
 # Compile-time values
 
-Bedrock distinguishes a value's data type from when that value becomes
+Zop distinguishes a value's data type from when that value becomes
 available. The `known` qualifier requires a function argument during
 compilation:
 
-```bedrock
+```zop
 kn blocked_matmul a: f32[m, k], b: f32[k, n], tile: known int
 ```
 
@@ -20,7 +20,7 @@ contract.
 
 The caller does not repeat `known`:
 
-```bedrock
+```zop
 blocked_matmul a, b, tile: 16
 ```
 
@@ -37,7 +37,7 @@ that argument.
 
 A symbolic tensor dimension is not automatically a compile-time value:
 
-```bedrock
+```zop
 fn normalize values: f32[n] -> f32[n]
 ```
 
@@ -57,7 +57,7 @@ specialization key.
 
 The formal feature is pure compile-time evaluation:
 
-- Compile-time expressions use the ordinary Bedrock expression language.
+- Compile-time expressions use the ordinary Zop expression language.
 - Every input to the expression must already be compile-time-known.
 - Compile-time evaluation cannot use `Io`, runtime `Mem`, time, entropy,
   processes, or other nondeterministic state.
@@ -79,7 +79,7 @@ separate machine-code version. The compiler caches those versions by function,
 target, and compile-time arguments.
 
 Specialization is explicit and narrow. Users cannot provide different function
-bodies for selected compile-time values. Bedrock does not provide code
+bodies for selected compile-time values. Zop does not provide code
 quotation, template recursion, or a fallback from failed specialization to
 runtime code.
 

@@ -1,15 +1,18 @@
 # Language
 
-The language contract defines how a Bedrock program behaves before the
+The language contract defines how a Zop program behaves before the
 compiler chooses an intermediate representation or target.
+
+Zop takes its name from `Z`, the alphabet's final letter: it aims to be the
+last language its users need. People who write Zop are Zoppers.
 
 ## Goals
 
-Bedrock is a strong systems language first. Tensor operations should feel
+Zop is a strong systems language first. Tensor operations should feel
 native enough that machine-learning frameworks grow directly from the
 language. That is a core goal, not the only goal.
 
-Performance is a premium. JAX-like purity is too, but Bedrock is not a
+Performance is a premium. JAX-like purity is too, but Zop is not a
 functional evangelist. Programs may use explicit mutation, pointers, and
 effects. The compiler preserves those choices instead of pretending they are
 pure.
@@ -27,11 +30,37 @@ visible in source.
 
 These are design goals, not implemented language guarantees.
 
-## Static typing and inference
+## Static typing and bounded inference
 
-Every Bedrock expression has one compile-time type. Source annotations are
-optional when inference determines that type uniquely. Ambiguous inference is a
-compile error; the compiler never inserts a runtime-dynamic value to keep going.
+Every Zop expression has one compile-time type. Source annotations are
+optional for local expressions and bindings when inference determines that type
+uniquely. Ambiguous inference is a compile error; the compiler never inserts a
+runtime-dynamic value to keep going.
+
+Zop does not use unrestricted Hindley-Milner inference. Its model is local,
+bidirectional, and unification-based: an expression either synthesizes a type
+from its syntax or is checked against an expected type supplied by its context.
+Shape, placement, effects, ownership, and error channels add separate checked
+constraints.
+
+The annotation boundary is deliberate:
+
+- Named function parameters always state their types and ownership modes.
+- Exported functions state parameter, success, and error contracts. The exact
+  public effect syntax remains open.
+- A private non-recursive function may infer its return type when unique.
+- A recursive function states its return type before checking its body.
+- A closure parameter may infer from an expected callable type; otherwise it is
+  annotated.
+- Local bindings and intermediate expressions infer whenever the result is
+  unique.
+- Generic declarations are explicit, while generic arguments may infer at a
+  call site.
+
+Local bindings are monomorphic unless source explicitly declares a generic.
+The compiler does not automatically generalize a local function into a hidden
+polymorphic value. This keeps compilation local and prevents later uses from
+silently changing an earlier binding's contract.
 
 | Source choice | Compiler contract |
 | --- | --- |
@@ -63,7 +92,7 @@ An unsuffixed numeric literal has no concrete machine type until its immediate
 context supplies one. Function results, call parameters, existing bindings,
 and typed arithmetic operands provide that context:
 
-```bedrock
+```zop
 fn add_one value: f32 -> f32
     value + 1
 ```
@@ -74,7 +103,7 @@ made only from numeric literals.
 
 Only literal expressions are contextual. Named values never promote:
 
-```bedrock
+```zop
 fn add left: f32, right: i32 -> f32
     left + right  # compile error
 ```
@@ -82,7 +111,7 @@ fn add left: f32, right: i32 -> f32
 A new binding ends contextual inference. Without an expected type, integer
 literals default to `i64` and floating-point literals default to `f64`:
 
-```bedrock
+```zop
 count = 1    # i64
 rate = 0.5  # f64
 ```
@@ -108,10 +137,10 @@ literal type before lowering begins.
 
 ## Tensors and structured values
 
-A tensor is Bedrock's homogeneous array type, generalized to any number of
+A tensor is Zop's homogeneous array type, generalized to any number of
 dimensions:
 
-```bedrock
+```zop
 vector = [1, 2, 3]
 matrix = [[1, 2], [3, 4]]
 ```
@@ -123,7 +152,7 @@ created, and that shape remains fixed for the tensor's lifetime.
 
 Dimensions may be integer literals, named constants, or symbolic parameters:
 
-```bedrock
+```zop
 fn transpose value: f32[m, n] -> f32[n, m]
 ```
 
@@ -136,7 +165,7 @@ tensor contract.
 Parentheses group a fixed number of values and may mix types. Records provide
 the same structural role with names:
 
-```bedrock
+```zop
 pair = (weights, bias)
 point = Point(x: 1, y: 2)
 ```
@@ -150,7 +179,7 @@ same source structure afterward.
 
 `name: known Type` requires an argument to be available during compilation:
 
-```bedrock
+```zop
 kn blocked_matmul a: f32[m, k], b: f32[k, n], tile: known int
 ```
 
@@ -196,7 +225,7 @@ execution, and ahead-of-time (AOT) linking.
 
 ## Memory
 
-Bedrock uses checked single ownership, borrowing, explicit transfer, and
+Zop uses checked single ownership, borrowing, explicit transfer, and
 deterministic destruction. Functions that request storage receive an explicit `Mem`
 capability. The core language does not require garbage collection. See the
 [memory-management contract](memory.md).
@@ -224,7 +253,7 @@ callables keep distinct runtime representations. See the
 
 ## Grammar and names
 
-Bedrock uses controlled English: fixed word order with little punctuation, not
+Zop uses controlled English: fixed word order with little punctuation, not
 free-form prose. Action functions use base-form verb phrases such as `load`,
 `read_config`, and `compile`. Names do not encode tense or grammar with forms
 such as `to_load`, `try_load`, or `loaded_config`.
@@ -249,14 +278,14 @@ A newline ends an expression unless it occurs inside an explicit delimiter.
 Blank lines do not affect layout. Backslashes and trailing operators do not
 continue a line.
 
-Bedrock has no semicolons or brace-delimited blocks. Braces remain available
+Zop has no semicolons or brace-delimited blocks. Braces remain available
 for future data syntax.
 
 ## Blocks and returns
 
 Every block is an expression. Its final expression is the block's value:
 
-```bedrock
+```zop
 fn square x: f32 -> f32
     x * x
 ```
@@ -271,7 +300,7 @@ Branches used as values must yield compatible types. This rule applies to
 
 ## Future: proper tail calls
 
-Bedrock intends to guarantee proper tail calls for CPU `fn` code. A call in
+Zop intends to guarantee proper tail calls for CPU `fn` code. A call in
 tail position will use bounded stack space, including self-recursive, mutually
 recursive, direct, and indirect calls with compatible function types.
 
@@ -306,5 +335,6 @@ The frontend must not guess these semantics:
 - Broadcasting, indexing, slicing, and bounds behavior.
 - Tensor layout at raw-pointer and foreign-function boundaries.
 - How functions declare or infer purity and other effects.
+- Generic declaration, constraint, and explicit-argument syntax.
 
 Resolve each decision in this page before code depends on it.

@@ -5,7 +5,7 @@ exceptions or reserve a tuple position for failure.
 
 ## Signatures
 
-```bedrock
+```zop
 fn boot io: Io -> App or fails with BootError
 ```
 
@@ -38,7 +38,7 @@ Top-level orchestration may require a broader error type.
 
 `fail with` exits through the current function's error channel:
 
-```bedrock
+```zop
 fn load path: str -> Config or fails with LoadError
     if not exists path
         fail with Missing path
@@ -57,13 +57,13 @@ grammar.
 
 `try to` propagates a compatible error through the current function:
 
-```bedrock
+```zop
 fn boot io: Io -> App or fails with BootError
-    config = try to load io, path: "bedrock.toml"
+    config = try to load io, path: "zop.toml"
     return App config
 ```
 
-Every propagation point is explicit. Bedrock has no automatic propagation or
+Every propagation point is explicit. Zop has no automatic propagation or
 lexical `try` region. `to` belongs to the grammar; the function remains `load`,
 not `to_load` or `try_load`.
 
@@ -74,7 +74,7 @@ as a value. Discarding a fallible result is a compile error.
 
 `catch` always requires an error pattern:
 
-```bedrock
+```zop
 config = load(io, path) catch error
     report error
     default_config
@@ -92,7 +92,7 @@ wildcard pattern explicitly.
 
 A tuple belongs wholly to the success channel:
 
-```bedrock
+```zop
 fn split input: str -> (str, str) or fails with ParseError
 ```
 
