@@ -21,7 +21,7 @@ contract.
 The caller does not repeat `known`:
 
 ```zop
-blocked_matmul a, b, tile: 16
+blocked_matmul a, b, tile=16
 ```
 
 The call is valid only when the compiler can evaluate the supplied expression.

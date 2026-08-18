@@ -46,16 +46,17 @@ constraints.
 The annotation boundary is deliberate:
 
 - Named function parameters always state their types and ownership modes.
-- Exported functions state parameter, success, and error contracts. The exact
-  public effect syntax remains open.
+- Exported functions state parameter, success, and error contracts. Capability
+  parameters and checked purity state their public effects.
 - A private non-recursive function may infer its return type when unique.
 - A recursive function states its return type before checking its body.
 - A closure parameter may infer from an expected callable type; otherwise it is
   annotated.
 - Local bindings and intermediate expressions infer whenever the result is
   unique.
-- Generic declarations are explicit, while generic arguments may infer at a
-  call site.
+- User-defined generics are deferred until concrete duplication proves their
+  required shape. When introduced, declarations will be explicit and call-site
+  arguments may infer.
 
 Local bindings are monomorphic unless source explicitly declares a generic.
 The compiler does not automatically generalize a local function into a hidden
@@ -135,6 +136,46 @@ The parser retains enough precision to represent the magnitude of every signed
 rejecting an out-of-range positive value. Typed HIR contains the final concrete
 literal type before lowering begins.
 
+## Type declarations
+
+`type` is the only keyword that introduces a type. The declaration form states
+which kind of type it defines:
+
+```zop
+type Point
+    x: f32
+    y: f32
+
+type Shape
+    case Circle radius: f32
+    case Rectangle width: f32, height: f32
+    case Empty
+
+type Ordered
+    fn compare self, other: Self -> Order
+
+type UserId = u64
+type FileId distinct u64
+```
+
+A field body defines a nominal product type. A `case` body defines a nominal
+sum type whose value contains exactly one case. A required-function body
+defines a behavioral contract for generic constraints. `type Name = Existing`
+is a transparent alias. `type Name distinct Existing` defines a
+layout-compatible nominal wrapper that requires explicit conversion.
+
+Constructors are ordinary calls, so call punctuation stays uniform:
+
+```zop
+point = Point x=3, y=4
+shape = Shape.Circle radius=10
+```
+
+Zop has no separate `struct`, `enum`, `record`, `interface`, `trait`, `alias`,
+or error-declaration keyword. This means every source type declaration begins
+with `type`; it does not make types ordinary runtime values or introduce
+dependent typing.
+
 ## Tensors and structured values
 
 A tensor is Zop's homogeneous array type, generalized to any number of
@@ -162,18 +203,34 @@ every size. Unknown element types, unknown rank, resizable tensors, ragged
 tensor literals, and data-dependent output shapes are not part of the first
 tensor contract.
 
-Parentheses group a fixed number of values and may mix types. Records provide
-the same structural role with names:
+Parentheses group a fixed number of values and may mix types. Product types
+provide the same structural role with names:
 
 ```zop
 pair = (weights, bias)
-point = Point(x: 1, y: 2)
+point = Point x=1, y=2
 ```
 
-Tuples and records organize values. They are not tensors and do not have a
+Tuples and product values organize data. They are not tensors and do not have a
 single element type, shape, placement, or tensor operation. Compiler
 transformations may flatten their tensor leaves internally and reconstruct the
 same source structure afterward.
+
+## Generics
+
+The bootstrap does not expose user-defined generics. The target syntax uses
+square-bracket type parameters and one `where` constraint form. Symbolic tensor
+dimensions express shape relationships and are not general type parameters.
+
+Zop will add generics when the same useful algorithm or data structure must be
+implemented repeatedly with only its types changed. The first expected users
+are core collections, callable abstractions, and the self-hosted compiler. The
+design must infer type arguments at ordinary call sites, preserve separate
+compilation, and keep compile cost measurable.
+
+The initial generic system will not include template metaprogramming,
+type-level reflection, user specialization rules, or arbitrary compile-time
+code generation. See the complete [generics contract](generics.md).
 
 ## Compile-time values
 
@@ -198,6 +255,16 @@ compile time.
 
 This rule gives pure tensor code the transformations associated with JAX while
 keeping systems code honest about mutation and input or output.
+
+`Io` and `Mem` parameters make authority visible in the function type. The
+frontend infers the complete effect set in HIR from capabilities, mutation,
+failure, suspension, target calls, and unsafe operations. It rejects an
+operation when the caller lacks the required authority.
+
+`pure fn` is an optional checked promise for APIs whose lack of observable
+effects is part of their contract. `unsafe fn` states an obligation that every
+caller must uphold. Zop does not duplicate the inferred effect set in a general
+source-level effect list.
 
 ## Mutation
 
@@ -247,8 +314,9 @@ functions and GPU kernels cannot use host input/output. See the
 
 `.` selects a member and never invokes it. Whitespace or parentheses invoke a
 callable value. Commas separate multiple arguments and parameters. Named
-arguments use `label: value`. Functions, bound methods, closures, and dynamic
-callables keep distinct runtime representations. See the
+arguments use `label=value`. `:` states a type; `=` supplies a value. Functions,
+bound methods, closures, and dynamic callables keep distinct runtime
+representations. See the
 [callables contract](callables.md).
 
 ## Grammar and names
@@ -328,13 +396,8 @@ contract](errors.md).
 
 The frontend must not guess these semantics:
 
-- The exact syntax for view-origin annotations and unsafe pointers.
-- How functions capture values.
-- Default argument semantics.
 - Explicit numeric cast syntax.
 - Broadcasting, indexing, slicing, and bounds behavior.
 - Tensor layout at raw-pointer and foreign-function boundaries.
-- How functions declare or infer purity and other effects.
-- Generic declaration, constraint, and explicit-argument syntax.
 
 Resolve each decision in this page before code depends on it.

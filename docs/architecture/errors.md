@@ -24,6 +24,21 @@ silently change that contract. Bare `or fails` opts into inference.
 The error type is part of the function type. Interfaces, closures, and function
 pointers cannot erase it.
 
+## Error types
+
+Errors are ordinary values of ordinary sum types:
+
+```zop
+type LoadError
+    case Missing path: str
+    case Invalid line: int, message: str
+    case Denied path: str
+```
+
+Zop has no separate error declaration or exception hierarchy. The same `type`
+and `case` grammar defines protocol states, option-like values, and domain
+errors. A `catch` over a sum type must handle every reachable case.
+
 ## Error boundaries
 
 An exported fallible function exposes one named domain error. That error may be
@@ -59,7 +74,7 @@ grammar.
 
 ```zop
 fn boot io: Io -> App or fails with BootError
-    config = try to load io, path: "zop.toml"
+    config = try to load io, path="zop.toml"
     return App config
 ```
 
@@ -110,7 +125,6 @@ separate and stop compilation.
 
 ## Open decisions
 
-- Error declaration, payload, and sum syntax.
 - Device-kernel failures.
 - Cross-module application binary interface representation.
 
@@ -119,6 +133,7 @@ separate and stop compilation.
 - Reject a discarded fallible result.
 - Reject `fail with` in an infallible function.
 - Reject an error value outside the declared error type.
+- Construct error cases through the ordinary sum-type contract.
 - Reject incomplete `fail with` forms during parsing.
 - Reject propagation without a compatible error channel.
 - Reject inferred error types on exported functions.

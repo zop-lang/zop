@@ -32,7 +32,7 @@ fn main init: Process -> App or fails with RunError
     return try to run init.io, init.mem
 
 fn run io: Io, mem: Mem -> App or fails with RunError
-    config = try to read_config io, mem, path: "zop.toml"
+    config = try to read_config io, mem, path="zop.toml"
     return try to build io, mem, config
 ```
 

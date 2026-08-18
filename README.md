@@ -37,7 +37,9 @@ quick to learn.
 The target compiler uses MLIR for tensor optimization and Cranelift for native
 CPU code generation. See the
 [architecture documentation](docs/architecture/README.md) for the compiler
-boundaries and current implementation scope.
+boundaries and current implementation scope. The
+[roadmap](docs/architecture/roadmap.md) defines the earned gates for
+self-hosting and 1.0.
 
 ## Compiler bootstrap
 

@@ -19,9 +19,9 @@ flowchart LR
 The lexer emits logical newlines plus `Indent` and `Dedent` tokens. It rejects
 leading tabs, invalid dedents, unmatched delimiters, braces, and semicolons.
 The hand-written parser handles `fn`, `kn`, comma-separated parameters,
-trailing commas, expression precedence, calls, named arguments, assignments,
-final-expression returns, and the agreed error syntax. String literals support
-`\\`, `\"`, `\n`, `\r`, and `\t`; other escapes are rejected.
+trailing commas, expression precedence, calls, `label=value` named arguments,
+assignments, final-expression returns, and the agreed error syntax. String
+literals support `\\`, `\"`, `\n`, `\r`, and `\t`; other escapes are rejected.
 
 The semantic pass currently resolves module functions and lexical locals. It
 checks scalar expressions, stable assignment types, function calls, argument
@@ -30,6 +30,32 @@ typed HIR in parameter order. Numeric literals adopt an immediate expected
 type, but concrete values never promote. Control flow, tensors, ownership,
 effects, and error channels stop with structured diagnostics before HIR.
 Compile-time parameters are not implemented in the bootstrap grammar yet.
+
+## Stage-0 implementation policy
+
+Rust is the bootstrap implementation, not Zop's permanent source language.
+Language semantics therefore live in these contracts, typed HIR, verifiers,
+and conformance tests rather than Rust-specific abstractions. The Rust compiler
+remains the small, supported recovery root after self-hosting.
+
+Stage 0 minimizes code under these rules:
+
+- Use a maintained crate when it deletes substantial compiler code behind a
+  narrow boundary.
+- Pin every dependency and commit the lockfile; compilation never downloads a
+  replacement implementation.
+- Keep syntax, semantics, MLIR lowering, and Cranelift translation as concrete
+  modules. Add a trait only after a second real implementation needs it.
+- Keep `mod.rs` files as module maps, not implementation containers.
+- Reject unsupported semantics with structured diagnostics instead of adding
+  placeholders or fallback paths.
+
+Logos owns raw-token recognition, Melior owns the MLIR API, and Cranelift owns
+native code generation. The existing recursive-descent parser stays while it
+is smaller and more precise than a replacement. Chumsky is the preferred
+parser-combinator candidate when a measured spike deletes parser code without
+weakening spans, recovery, compile time, or diagnostics. Framework churn is not
+a self-hosting milestone.
 
 ## Target contract
 
@@ -113,8 +139,8 @@ program compile.
 Inference is bidirectional and local to the current declaration. Named
 parameters provide input types; expected types flow into literals, closures,
 calls, and block results; synthesized types flow outward. Local bindings are
-not generalized implicitly. Generic declarations are explicit even when their
-arguments infer at call sites.
+not generalized implicitly. When user-defined generics are introduced, their
+declarations will be explicit even when arguments infer at call sites.
 
 The parser distinguishes member selection from invocation without consulting
 types. Name resolution later classifies fields, methods, module functions, and
@@ -150,5 +176,6 @@ invalid frontend result.
 - Require a return type before checking a recursive function body.
 - Infer a closure parameter only from one expected callable type.
 - Reject implicit polymorphic generalization of a local binding.
-- Infer call-site arguments for an explicitly declared generic.
+- Once generics exist, infer call-site arguments for an explicitly declared
+  generic.
 - Produce identical HIR facts from equivalent inferred and annotated source.

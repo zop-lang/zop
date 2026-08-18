@@ -66,8 +66,8 @@ The browser entrypoint receives explicit capabilities:
 
 ```zop
 fn main browser: Browser, mem: Mem -> App or fails with WebError
-    root = try to browser.dom.find id: "app"
-    try to root.set_text value: "Hello from Zop"
+    root = try to browser.dom.find id="app"
+    try to root.set_text value="Hello from Zop"
     return App
 ```
 

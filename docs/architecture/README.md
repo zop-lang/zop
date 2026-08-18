@@ -44,6 +44,7 @@ backend translates the same form to Cranelift intermediate representation
 | Area | Owns | Does not own |
 | --- | --- | --- |
 | [Language](language.md) | Source-level behavior and open language decisions | Compiler representation |
+| [Generics](generics.md) | Type parameters, constraints, inference, specialization, and coherence | Implementation schedule |
 | [Compile-time values](compile-time.md) | Pure evaluation, `known`, and specialization | Runtime configuration |
 | [Standard library](stdlib.md) | Core types, algorithms, capabilities, and official-package boundary | Application frameworks |
 | [Packages and builds](package-management.md) | Package layout, imports, dependency resolution, hermetic builds, and publishing | Workspace topology |
@@ -65,6 +66,7 @@ backend translates the same form to Cranelift intermediate representation
 | [Performance](performance.md) | Target floors, forbidden overhead, benchmarks, and change gates | Language semantics |
 | [Automatic differentiation](autodiff.md) | Gradient semantics and compiler transformations | Tensor execution backends |
 | [Testing](testing.md) | Semantic oracle, conformance, and performance gates | Language design |
+| [Roadmap](roadmap.md) | Earned implementation, self-hosting, and 1.0 gates | Calendar commitments |
 | [Self-hosting](self-hosting.md) | Readiness gates, bootstrap proof, and cutover | Language or backend redesign |
 | [Design lineage](design-lineage.md) | Sources, credit, and composition rationale | Compatibility promises |
 

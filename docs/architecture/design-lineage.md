@@ -60,6 +60,12 @@ informs the separation between tokens, syntax, and semantic analysis plus the
 rule that error recovery must always consume input. Zop does not adopt its
 event stream or Rowan tree until the grammar needs them.
 
+[Chumsky](https://docs.rs/chumsky/latest/chumsky/) supplies parser combinators,
+Pratt parsing, and explicit recovery strategies. It is the preferred candidate
+for replacing the bootstrap parser only when a measured implementation deletes
+code while preserving spans, diagnostics, recovery, and compile speed. Zop
+does not adopt a framework merely to replace working concrete code.
+
 Mojo's public language documentation informs the source contract. Modular's
 compiler parser is not public, so Zop does not claim it as an implementation
 reference.
@@ -154,6 +160,24 @@ whole-program signature inference.
 
 Sources: [Damas and Milner](https://steshaw.org/hm/milner-damas.pdf) and
 [Dunfield and Krishnaswami](https://research.cs.queensu.ca/home/jana/papers/bidir-survey/).
+
+## Generics
+
+Go demonstrates why generics should follow concrete need rather than lead a
+language design. Its type-parameter work began with flawed proposals shortly
+after the language launched and took more than a decade to reach a design that
+preserved clarity, build speed, and separate use of generic packages.
+
+Zop adopts the resulting rule: add a type parameter when useful code would
+otherwise be repeated with only its types changed. The
+[generics contract](generics.md) specifies the syntax and semantics now while
+deferring implementation until core collections provide real consumers. Type
+arguments infer for ordinary callers, while template metaprogramming,
+type-level reflection, and user specialization remain out of scope.
+
+Sources: [Go generics proposal](https://go.dev/blog/generics-proposal),
+[why generics](https://go.dev/blog/why-generics), and
+[when to use generics](https://go.dev/blog/when-generics).
 
 ## Numeric literals
 

@@ -3,8 +3,8 @@
 Zop uses single-owner values, checked borrowing, and deterministic
 destruction. The core language does not require garbage collection.
 
-> **Status:** This page defines target semantics. The example keywords are
-> provisional until the language grammar is frozen.
+> **Status:** This page defines target semantics. The bootstrap does not yet
+> implement ownership, views, raw pointers, or unsafe checking.
 
 ## Scope
 
@@ -56,9 +56,10 @@ Small scalar types may opt into implicit copying. Heap-owning and
 resource-owning values never deep-copy implicitly. Copying them requires an
 explicit operation.
 
-Raw pointers exist for systems work and foreign interfaces. Dereferencing a raw
-pointer requires an explicit unsafe boundary. Unsafe code may bypass checks,
-but it does not change the contract expected by safe callers.
+Raw pointers exist for systems work and foreign interfaces. They do not own or
+release their pointees. Unsafe source may assert obligations that the compiler
+cannot prove, but it does not disable type, ownership, or effect checking and
+does not weaken the contract expected by safe callers.
 
 ## Local mutation
 
@@ -112,6 +113,87 @@ return. Borrowing normally appears as a parameter mode. Language-defined forms
 such as tensor views, slice views, bound methods, and closures may carry a
 compiler-tracked origin.
 
+## Raw pointers
+
+`*` is a postfix type constructor. It attaches to the complete type, never to a
+variable name:
+
+```zop
+value: i32*
+indirect: i32**
+deep: i32*8
+source: const f32*
+destination: f32*
+optional: f32*?
+pointers: f32*[n]
+buffer: f32[n]*
+device: global f32*
+callback: (fn value: i32 -> i32)*
+```
+
+Each declaration binds one name to one complete type. C-style declarations
+such as `int *left, right` are invalid; write `left: int*, right: int*`.
+
+Repeated stars express repeated pointer construction. `T*8` is shorthand for
+`T********`; the count is a positive integer. The formatter writes up to three
+stars directly and uses the counted form beyond that. This grammar exists only
+in a type position, so `value * 8` remains multiplication.
+
+`T*1` is `T*`; `T*0` is invalid. A counted form is normalized before type
+identity, so alternate spellings cannot produce distinct application binary
+interfaces.
+
+Type constructors compose from left to right. `f32*[n]` is a tensor of
+pointers, while `f32[n]*` is a pointer to a tensor descriptor. `const T*`
+cannot mutate `T`; `T*` may. `T*` is non-null and `T*?` is nullable. A foreign C
+pointer is nullable unless its imported contract proves otherwise.
+
+`&value` takes an address and prefix `*pointer` dereferences one level. The
+compiler applies repeated prefix stars one level at a time:
+
+```zop
+pointer = &value
+unsafe
+    value = *pointer
+    nested = **indirect
+```
+
+Taking an address is safe when the resulting pointer cannot outlive its source.
+Dereferencing, pointer arithmetic or indexing, pointer-integer conversion,
+reinterpretation, raw view construction, foreign deallocation, and calling an
+unsafe function require a lexical `unsafe` block.
+
+A pointer retains its allocation identity, address space, alignment, and access
+permission. Pointer-to-integer conversion explicitly exposes the address;
+integer-to-pointer conversion does not silently recover provenance. Volatile
+and atomic access are distinct operations, never properties inferred from an
+ordinary dereference.
+
+Constructing a safe view from a pointer and extent must prove alignment,
+initialization, bounds, lifetime, placement, and exclusive access when mutable.
+Failure to prove any item leaves the result inside unsafe code; the compiler
+does not bless a view from a plausible address.
+
+`unsafe fn` states an obligation that its caller must prove. Its implementation
+still places each unchecked operation in a lexical `unsafe` block so review can
+see the exact trusted region. The compiler reports which obligation cannot be
+proven; `unsafe` is never a blanket optimization switch.
+
+Every unsafe function documents its safety preconditions. Violating one is
+undefined behavior, and the optimizer may rely on it. Writing `unsafe` accepts
+that obligation; it does not make an invalid operation defined.
+
+Owned storage still releases deterministically. A raw pointer is never an
+owner, so dropping it does nothing. Safe foreign ownership uses an owning
+wrapper with one destructor. `mem.free_raw pointer` is the explicit unsafe
+escape hatch when a foreign application binary interface transfers a raw
+allocation to Zop.
+
+`mem.free_raw` requires the original allocation address, matching `Mem`, layout,
+and alignment, no prior release, and no live safe view. The operation fails to
+compile when those facts are statically contradictory; remaining obligations
+belong to the unsafe block.
+
 ## Tensors and views
 
 A tensor owns its storage. Giving a tensor transfers its descriptor, not the
@@ -124,9 +206,16 @@ fn row values: f32[m, n], index: int -> view f32[n]
 ```
 
 The compiler infers that the returned view originates from `values`. HIR stores
-that origin even when source omits it. If more than one origin is possible, the
-program must state one or compilation fails. The exact annotation syntax
-remains open.
+that origin even when source omits it. An exported or ambiguous return states
+its possible origins with `from`:
+
+```zop
+fn choose left: f32[n], right: f32[n], use_left: bool
+    -> view f32[n] from left, right
+```
+
+The annotation bounds the valid origins; it does not choose one at runtime. An
+unlisted or unprovable origin is a compile error.
 
 A record or closure may store a view only while its origin remains alive. The
 same rule applies to a bound method or closure that borrows a captured value.
@@ -220,6 +309,14 @@ specialization and backend optimization introduce their own compile-time cost.
 - Permit local mutation of a uniquely owned value without `mut`.
 - Require `mut` for writable access through a borrowed parameter or view.
 - Reject a view that outlives its tensor.
+- Require `from` when a public view may originate from more than one input.
+- Prove a non-null pointer before converting it to `T*`.
+- Require lexical `unsafe` for raw dereference, arithmetic, conversion,
+  reinterpretation, raw views, foreign release, and unsafe calls.
+- Prove `T*8` and eight repeated stars produce the same type.
+- Distinguish a tensor of pointers from a pointer to a tensor descriptor.
+- Prove dropping a raw pointer never releases storage.
+- Prove every safe foreign owner releases exactly once.
 - Prove that ordinary calls do not consume borrowed arguments.
 - Prove that copying a tensor is explicit.
 - Prove that pure tensor code may reuse a uniquely owned dead buffer.

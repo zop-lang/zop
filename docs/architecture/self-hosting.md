@@ -7,6 +7,8 @@ maturity, not a way to discover missing semantics.
 The gate treats typed high-level intermediate representation (HIR) and the
 runtime application binary interface (ABI) as versioned contracts.
 It requires both just-in-time (JIT) and ahead-of-time (AOT) compilation.
+The [roadmap](roadmap.md) schedules the gate at 0.7, the bootstrap proof at
+0.8, and compatibility freeze at 0.9.
 
 ## Entry gate
 
@@ -45,6 +47,12 @@ self-hosting closed.
 ## Bootstrap proof
 
 The mature Rust compiler becomes the permanent stage-0 bootstrap root.
+
+Stage 0 stays intentionally small. It uses pinned community crates for token
+recognition, MLIR construction, and native code generation where they remove
+substantial code. Zop-specific semantics remain in concrete modules, typed IR,
+verifiers, and conformance tests so they can be ported without translating a
+Rust framework architecture.
 
 ```mermaid
 flowchart LR
