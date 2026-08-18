@@ -38,7 +38,7 @@ fn named_arguments_are_arranged_in_parameter_order() {
         "fn subtract left: i64, right: i64 -> i64\n",
         "    left - right\n",
         "fn main -> i64\n",
-        "    subtract right: 2, left: 5\n",
+        "    subtract right=2, left=5\n",
     );
     let module = analyze(source).expect("named call should type-check");
     let main = module.function("main").expect("main should exist");

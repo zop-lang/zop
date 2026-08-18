@@ -154,7 +154,7 @@ impl Parser<'_, '_> {
 
     fn parse_argument(&mut self, allow_nested_command: bool) -> Option<Argument> {
         let start = self.current().span.start;
-        let label = if self.at(TokenKind::Identifier) && self.nth(1).kind == TokenKind::Colon {
+        let label = if self.at(TokenKind::Identifier) && self.nth(1).kind == TokenKind::Equal {
             let label = self.bump().text(self.source).to_owned();
             self.bump();
             Some(label)

@@ -21,7 +21,7 @@ fn function_signature_and_tail_expression_are_structured() {
 
 #[test]
 fn calls_preserve_labels_and_full_argument_expressions() {
-    let source = "fn main -> i64\n    print 1 + 2, radix: 10\n";
+    let source = "fn main -> i64\n    print 1 + 2, radix=10\n";
     let module = parse(source).expect("call should parse");
     let expression = &module.functions[0].body.expressions[0];
     let ExpressionKind::Call { arguments, .. } = &expression.kind else {
@@ -35,6 +35,14 @@ fn calls_preserve_labels_and_full_argument_expressions() {
         ExpressionKind::Binary { operator: BinaryOperator::Add, .. }
     ));
     assert_eq!(arguments[1].label.as_deref(), Some("radix"));
+}
+
+#[test]
+fn named_arguments_require_equals() {
+    let source = "fn main -> i64\n    print 1, radix: 10\n";
+    let errors = parse(source).expect_err("named arguments use equals");
+
+    assert!(errors.iter().any(|error| error.code == "P0011"));
 }
 
 #[test]
