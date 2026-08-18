@@ -1,4 +1,4 @@
-use bedrock::lexer::{TokenKind, lex};
+use zop::lexer::{TokenKind, lex};
 
 fn kinds(source: &str) -> Vec<TokenKind> {
     let tokens = lex(source).expect("source should lex");

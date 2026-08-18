@@ -1,4 +1,4 @@
-use bedrock::{backend::mlir_text, frontend::analyze};
+use zop::{backend::mlir_text, frontend::analyze};
 
 #[test]
 fn scalar_hir_emits_verified_mlir() {

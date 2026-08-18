@@ -1,0 +1,134 @@
+schema = 1
+name = "web-2026q3"
+target = "js-browser"
+status = "experimental"
+
+[[suites]]
+id = "test262"
+repository = "https://github.com/tc39/test262"
+revision = "3655e7464de3d52643ecddd4b5f9f4f3e7f62398"
+mode = "selected"
+
+[[suites]]
+id = "wpt"
+repository = "https://github.com/web-platform-tests/wpt"
+revision = "890e1092681e3800333bdf06ec1526c39f4bcaaa"
+mode = "selected"
+
+[[suites]]
+id = "wasm-spec"
+repository = "https://github.com/WebAssembly/spec"
+revision = "fc209c5ed8afc4dfeb9252024d217da3376c7a6f"
+mode = "selected"
+
+[[suites]]
+id = "webgpu-cts"
+repository = "https://github.com/gpuweb/cts"
+revision = "2959e1c3959aa55cd3f02726995ae68159d0e064"
+mode = "selected"
+
+[[suites]]
+id = "ecma426"
+repository = "https://github.com/tc39/ecma426"
+revision = "44a6c3f2a8d9d86b2d145f5e50fa5f418fe4855b"
+mode = "selected"
+
+[[suites]]
+id = "csp"
+repository = "https://github.com/w3c/webappsec-csp"
+revision = "e81d712e979255b8291579854e168f0021b5b0da"
+mode = "selected"
+
+[[suites]]
+id = "webidl"
+repository = "https://github.com/whatwg/webidl"
+revision = "fad9b4ce284fd034b719c1c8576e1c692bc97de3"
+mode = "selected"
+
+[[requirements]]
+id = "ecmascript.module-emission"
+area = "ecmascript"
+status = "supported"
+spec = "https://tc39.es/ecma262/#sec-modules"
+suites = ["test262"]
+tests = ["scalar_hir_emits_a_deterministic_es_module"]
+
+[[requirements]]
+id = "ecmascript.i32-exact"
+area = "ecmascript"
+status = "supported"
+spec = "https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type"
+suites = ["test262"]
+tests = ["i32_arithmetic_retains_its_machine_width"]
+
+[[requirements]]
+id = "ecmascript.f64-literals"
+area = "ecmascript"
+status = "supported"
+spec = "https://tc39.es/ecma262/#sec-literals-numeric-literals"
+suites = ["test262"]
+tests = ["printer_preserves_tokens_and_uses_compact_float_literals"]
+
+[[requirements]]
+id = "security.no-runtime-source-evaluation"
+area = "security"
+status = "supported"
+spec = "https://www.w3.org/TR/CSP/#security-considerations"
+suites = ["csp", "test262"]
+tests = ["generated_javascript_avoids_runtime_source_evaluation"]
+
+[[requirements]]
+id = "tooling.profile-ledger"
+area = "tooling"
+status = "supported"
+spec = "https://web-platform-tests.org/"
+suites = ["wpt"]
+tests = ["web_profile_is_well_formed"]
+
+[[requirements]]
+id = "tooling.wgsl-validation"
+area = "webgpu"
+status = "supported"
+spec = "https://gpuweb.github.io/gpuweb/wgsl/"
+suites = ["webgpu-cts"]
+tests = ["wgsl_reference_fixture_is_valid"]
+
+[[requirements]]
+id = "webidl.bindings"
+area = "web-idl"
+status = "blocked"
+spec = "https://webidl.spec.whatwg.org/"
+suites = ["webidl", "wpt"]
+tests = []
+
+[[requirements]]
+id = "dom.host-bindings"
+area = "dom-html"
+status = "blocked"
+spec = "https://dom.spec.whatwg.org/"
+suites = ["wpt"]
+tests = []
+
+[[requirements]]
+id = "wasm.compute-islands"
+area = "webassembly"
+status = "blocked"
+spec = "https://webassembly.github.io/spec/"
+suites = ["wasm-spec"]
+tests = []
+
+[[requirements]]
+id = "webgpu.kernel-emission"
+area = "webgpu"
+status = "blocked"
+spec = "https://gpuweb.github.io/gpuweb/"
+suites = ["webgpu-cts"]
+tests = []
+
+[[requirements]]
+id = "source-maps.ecma426"
+area = "source-maps"
+status = "blocked"
+spec = "https://tc39.es/ecma426/"
+suites = ["ecma426"]
+tests = []

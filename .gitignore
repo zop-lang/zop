@@ -1,1 +1,4 @@
 /target
+/.zop/
+/conformance/web/reports/*
+!/conformance/web/reports/README.md

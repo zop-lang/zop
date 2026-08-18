@@ -52,12 +52,12 @@ impl JitArtifact {
     }
 }
 
-/// Compile typed Bedrock code into executable memory owned by the returned artifact.
+/// Compile typed Zop code into executable memory owned by the returned artifact.
 pub fn compile_jit(hir: &hir::Module) -> BackendResult<JitArtifact> {
     with_module(hir, |module| emit_jit(&translate(module)?))
 }
 
-/// Compile typed Bedrock code into a native object for the current host.
+/// Compile typed Zop code into a native object for the current host.
 pub fn compile_object(hir: &hir::Module) -> BackendResult<Vec<u8>> {
     with_module(hir, |module| emit_object(&translate(module)?))
 }
@@ -92,7 +92,7 @@ fn emit_object(input: &scalar::Module) -> BackendResult<Vec<u8>> {
         .map_err(|error| backend_error("B0004", error))?
         .finish(settings::Flags::new(settings::builder()))
         .map_err(|error| backend_error("B0004", error.to_string()))?;
-    let builder = ObjectBuilder::new(isa, "bedrock", default_libcall_names())
+    let builder = ObjectBuilder::new(isa, "zop", default_libcall_names())
         .map_err(|error| backend_error("B0004", error.to_string()))?;
     let mut module = ObjectModule::new(builder);
     let declared = declare_functions(&mut module, input)?;

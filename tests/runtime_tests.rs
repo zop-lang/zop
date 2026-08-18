@@ -1,4 +1,4 @@
-use bedrock::{backend::compile_object, frontend::analyze};
+use zop::{backend::compile_object, frontend::analyze};
 
 #[test]
 fn cranelift_aot_emits_a_native_object() {

@@ -13,7 +13,7 @@ use super::{
     TypeExpression,
 };
 
-/// Parse one complete Bedrock source file.
+/// Parse one complete Zop source file.
 pub fn parse(source: &str) -> Result<Module, Diagnostics> {
     let tokens = lex(source)?;
     Parser::new(source, &tokens).parse_module()

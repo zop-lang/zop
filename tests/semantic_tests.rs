@@ -1,4 +1,4 @@
-use bedrock::{
+use zop::{
     frontend::analyze,
     hir::{BinaryOperator, ExpressionKind, Type},
 };

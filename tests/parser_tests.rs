@@ -1,4 +1,4 @@
-use bedrock::syntax::{BinaryOperator, ExpressionKind, FunctionKind, ParameterMode, parse};
+use zop::syntax::{BinaryOperator, ExpressionKind, FunctionKind, ParameterMode, parse};
 
 #[test]
 fn function_signature_and_tail_expression_are_structured() {

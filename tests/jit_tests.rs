@@ -1,4 +1,4 @@
-use bedrock::{backend::compile_jit, frontend::analyze};
+use zop::{backend::compile_jit, frontend::analyze};
 
 #[test]
 fn cranelift_jit_executes_the_verified_scalar_module() {
