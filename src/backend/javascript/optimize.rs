@@ -1,16 +1,40 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Pure scalar folding while high-level intermediate representation still
 //! carries exact source types.
 
 use crate::hir;
 
+/// Pure scalar constant retained while its exact HIR type remains known.
 #[derive(Debug, PartialEq)]
 pub(super) enum Constant {
-    I32(i32),
-    F64(f64),
-    Bool(bool),
-    String(String),
+    /// Exact signed 32-bit integer value.
+    I32(
+        /// Wrapped bootstrap result with JavaScript `i32` representation.
+        i32,
+    ),
+
+    /// Finite binary64 value safe to print as one JavaScript number token.
+    F64(
+        /// Floating-point value after typed constant evaluation.
+        f64,
+    ),
+
+    /// Boolean value.
+    Bool(
+        /// Result of literal or comparison folding.
+        bool,
+    ),
+
+    /// Decoded string value.
+    String(
+        /// Unicode scalar sequence before JavaScript escaping.
+        String,
+    ),
 }
 
+/// Fold one proven-pure expression without losing its checked scalar type.
 pub(super) fn fold(expression: &hir::Expression) -> Option<Constant> {
     use hir::ExpressionKind as E;
     match &expression.kind {

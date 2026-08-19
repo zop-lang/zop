@@ -16,7 +16,8 @@ pinned toolchain.
 
 **The immutable store** contains source trees, toolchains, target packs,
 intermediate representation, objects, device images, WebAssembly modules, and
-other artifacts addressed by content digest.
+documentation models, rendered reference sites, books, and other artifacts
+addressed by content digest.
 
 **The action cache** maps a complete action digest to the immutable output-tree
 digest produced by that action.
@@ -91,9 +92,13 @@ action_cache[action_digest] = output_tree_digest
 ```
 
 `A` contains the executable, arguments, environment, target and execution
-platforms, optimization and safety policy, output contract, timeout, and rule
-implementation. `I` contains source, generated inputs, selected dependencies,
-toolchains, target packs, and foreign artifacts.
+platforms, optimization, safety, and floating-point profiles, output contract,
+CPU feature-variant set, required-vector assertions, debug instrumentation such
+as `--check-nonfinite`, timeout, and rule implementation. `I` contains source,
+generated inputs, selected dependencies, toolchains, target packs, and foreign
+artifacts. The selected schedule and its vectorization report are outputs; their
+content digests expose any change without pretending a derived decision was an
+action input.
 
 The complete workspace or lockfile digest does not salt an unrelated action.
 Only the selected dependency closure and semantic inputs enter its key. A
@@ -129,6 +134,7 @@ An explicit output option exports a final artifact:
 
 ```sh
 zop build //apps/site:web --out dist
+zop doc //packages/tensor --out site
 ```
 
 The export is written to a sibling temporary path and renamed atomically. It is
@@ -188,6 +194,10 @@ portable and enforced.
 - Prove project-view mutation cannot change an immutable CAS object.
 - Produce equal action and artifact digests across worktrees and machines.
 - Explain every cache miss by one changed semantic input.
+- Change the action digest when the floating-point profile changes.
+- Change the action digest when CPU feature variants or required-vector
+  assertions change, and content-address the selected schedule report.
+- Change the action and artifact digests when nonfinite instrumentation changes.
 - Prove unrelated lockfile changes do not invalidate an action closure.
 - Publish concurrent identical objects atomically without partial readers.
 - Reject corrupt local and remote objects instead of rebuilding silently.
@@ -196,6 +206,8 @@ portable and enforced.
 - Keep `zop clean` confined to the selected workspace's local state.
 - Reject a symbolic-link project-state root and never follow nested view links.
 - Produce equal standalone and BSMR artifact digests.
+- Restore documentation models, reference sites, and books without rechecking
+  unchanged source or examples.
 
 ## References
 

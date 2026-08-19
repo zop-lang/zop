@@ -186,14 +186,34 @@ implementation must prove that its coverage and emitter are sufficient before
 Zop adopts it. The alternative is a small direct emitter built on Bytecode
 Alliance `wasm-encoder`.
 
+Browser targets preserve the [numeric contract](numerics.md). JavaScript `/`
+may implement `f64 / f64`, but it cannot stand in for fixed-width integer floor
+division. WebAssembly truncating integer instructions require an explicit
+correction for floor or ceiling modes. WebGPU Shading Language (WGSL) supports
+materialized `f16` and `f32`, not `f64`; unsupported types and strict precision
+profiles are rejected rather than narrowed. Numeric placement never inserts an
+integer-to-float conversion.
+
 Cranelift remains the native central processing unit (CPU) backend; it does not
 emit WebAssembly. A region has one compiler-selected target recorded in
 intermediate representation. A lowering failure never retries through
 Cranelift or another browser target.
 
-Tensor code may use WebAssembly vector instructions and explicit worker
-parallelism. A future browser `kn` backend targets WebGPU separately from DOM
-execution.
+Tensor code may use WebAssembly vector instructions only inside a numeric
+island whose host boundary already passes placement analysis. Direct
+ECMAScript cannot certify a machine SIMD instruction, and the compiler never
+creates per-element host crossings to obtain one. The
+[SIMD contract](simd.md#browser-boundary) defines reporting and tests. Explicit
+worker parallelism remains separate, and a future browser `kn` backend targets
+WebGPU rather than DOM execution.
+
+A language trap terminates the selected Zop browser execution domain under the
+[runtime contract](runtime.md#traps-and-execution-domains). A direct JavaScript
+application is marked failed and receives no later callback. A WebAssembly
+instance or worker is discarded. DOM writes and host effects completed before
+the trap are not rolled back. An embedding page may report the fault and create
+a fresh application domain, but trapped Zop code cannot catch the event or
+resume with partially mutated state.
 
 ## Framework boundary
 
@@ -233,6 +253,8 @@ non-DOM components when browser support is mature enough.
 - Prove DOM capabilities and handles cannot cross worker boundaries.
 - Reject leaked listeners, callbacks, tasks, streams, and host handles.
 - Preserve typed failures across promises and JavaScript exceptions.
+- Terminate a trapping application, worker, or WebAssembly instance and prove
+  no later callback resumes its state.
 - Load under a strict Content Security Policy without runtime source evaluation.
 - Produce correct source maps, stack traces, and browser profiler locations.
 - Rebuild and reload an edited module within a published latency budget.

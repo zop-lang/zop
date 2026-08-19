@@ -1,6 +1,11 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Expression parsing and precedence.
 //!
 //! The declaration parser delegates here after it enters a function body.
+//! Prefix, postfix, and infix forms produce one syntax tree before semantic
+//! resolution decides whether names denote values, members, or callables.
 
 use crate::{lexer::TokenKind, source::Span};
 
@@ -10,6 +15,7 @@ use super::{
 };
 
 impl Parser<'_, '_> {
+    /// Parse one complete expression through assignment and catch suffixes.
     pub(super) fn parse_expression(&mut self) -> Option<Expression> {
         let left = self.parse_binary(0, true)?;
         let expression = if self.eat(TokenKind::Equal).is_some() {

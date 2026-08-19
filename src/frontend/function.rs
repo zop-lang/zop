@@ -1,6 +1,15 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Per-function name resolution and type checking.
 //!
 //! Module signatures enter this pass and typed expressions leave it.
+//!
+//! Flow:
+//!
+//! 1. Bind parameters to stable local identities.
+//! 2. Check each expression in source evaluation order.
+//! 3. Validate every successful exit against the resolved result type.
 
 use std::collections::HashMap;
 
@@ -11,20 +20,29 @@ use super::{
     literal,
 };
 
+/// Function-local binding after its type and identity are fixed.
 #[derive(Clone, Copy)]
 struct Local {
+    /// Stable slot used by HIR reads and writes.
     id: hir::LocalId,
+    /// Concrete type that later assignments must preserve.
     ty: hir::Type,
 }
 
+/// Per-function state for resolving locals and constructing typed HIR.
 pub(super) struct FunctionContext<'checker, 'syntax> {
+    /// Module checker that owns signatures and semantic diagnostics.
     checker: &'checker mut Checker<'syntax>,
+    /// Resolved interface fixed before this body is checked.
     signature: Signature,
+    /// Active lexical bindings keyed by source name.
     locals: HashMap<String, Local>,
+    /// First unused HIR local slot after parameters and prior assignments.
     next_local: usize,
 }
 
 impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
+    /// Bind resolved parameters and initialize local identity allocation.
     pub(super) fn new(checker: &'checker mut Checker<'syntax>, signature: Signature) -> Self {
         let locals = signature
             .parameters
@@ -38,6 +56,7 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
         Self { checker, signature, locals, next_local }
     }
 
+    /// Check one body against its pre-resolved signature.
     pub(super) fn check(&mut self, function: &syntax::Function) -> Option<hir::Function> {
         let body = self.check_block(&function.body, self.signature.result);
         let body_result =

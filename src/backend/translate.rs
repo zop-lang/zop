@@ -1,7 +1,12 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Verified Multi-Level Intermediate Representation (MLIR) to the restricted
 //! Cranelift input intermediate representation.
 //!
 //! Unknown operations stop here before machine-code construction.
+//! Translation admits one verified scalar block, assigns stable values, and
+//! converts each allowed operation exactly once.
 
 use melior::ir::{
     Attribute, BlockRef, Module as MlirModule, RegionLike, Value,
@@ -16,6 +21,7 @@ use super::{
     scalar,
 };
 
+/// Translate one verified MLIR module into the restricted scalar boundary.
 pub(super) fn translate(module: &MlirModule<'_>) -> BackendResult<scalar::Module> {
     let mut functions = Vec::new();
     let mut operation = module.body().first_operation();
@@ -62,10 +68,18 @@ fn translate_function(function: OperationRef<'_, '_>) -> BackendResult<scalar::F
     })
 }
 
+/// Verified MLIR entry block translated into the restricted scalar form.
 struct FunctionTranslator<'context, 'operation> {
+    /// Only block admitted by the current scalar function contract.
     block: BlockRef<'context, 'operation>,
+
+    /// MLIR values paired with stable scalar identities.
     values: Vec<(Value<'context, 'operation>, scalar::ValueId)>,
+
+    /// Scalar operations emitted in dependency order.
     operations: Vec<scalar::Operation>,
+
+    /// First unused scalar value identity.
     next_value: usize,
 }
 

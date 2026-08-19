@@ -1,0 +1,8 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/zop-lang/zop/discussions
+    about: Ask usage and design questions without declaring a release commitment.

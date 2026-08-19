@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Name resolution, typing, and semantic rejection tests.
+
 use zop::{
     frontend::analyze,
     hir::{BinaryOperator, ExpressionKind, Type},
@@ -80,6 +85,53 @@ fn parameter_names_are_unique_within_a_signature() {
     let errors = analyze(source).expect_err("duplicate parameters must fail");
 
     assert!(errors.iter().any(|error| error.code == "S0003"));
+}
+
+#[test]
+fn invariant_forward_calls_resolve_from_signatures() {
+    let source = concat!(
+        "fn first value: i64 -> i64\n",
+        "    second value\n",
+        "fn second value: i64 -> i64\n",
+        "    value\n",
+    );
+    let module = analyze(source).expect("peer signatures must resolve before bodies");
+    let first = module.function("first").expect("first function should exist");
+
+    assert!(matches!(first.body.expressions[0].kind, ExpressionKind::Call { .. }));
+}
+
+#[test]
+fn invariant_recursive_functions_require_explicit_result_types() {
+    let cases = [
+        ("direct", "fn recurse\n    recurse()\n", 1),
+        ("mutual", concat!("fn first\n", "    second()\n", "fn second\n", "    first()\n"), 2),
+        (
+            "caller outside cycle",
+            concat!(
+                "fn entry\n",
+                "    first()\n",
+                "fn first\n",
+                "    second()\n",
+                "fn second\n",
+                "    first()\n",
+            ),
+            2,
+        ),
+    ];
+
+    for (name, source, expected) in cases {
+        let errors = analyze(source).expect_err(name);
+        assert_eq!(errors.iter().filter(|error| error.code == "S0010").count(), expected, "{name}");
+    }
+}
+
+#[test]
+fn invariant_explicit_result_types_close_recursive_signatures() {
+    let source =
+        concat!("fn first -> i64\n", "    second()\n", "fn second -> i64\n", "    first()\n",);
+
+    analyze(source).expect("explicit recursive signatures should type-check");
 }
 
 #[test]

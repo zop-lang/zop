@@ -1,9 +1,13 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Deterministic JavaScript printer with precedence-aware parentheses.
 
 use std::fmt::Write;
 
 use super::ast::{self, BinaryOperator as B, Expression as E, Statement as S};
 
+/// Print one lowered module with deterministic names and whitespace.
 pub(super) fn print(module: &ast::Module) -> String {
     let mut output = String::new();
     for (index, function) in module.functions.iter().enumerate() {

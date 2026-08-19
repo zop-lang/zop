@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Source parsing, name resolution, and type checking.
 //!
 //! Successful analysis produces typed high-level intermediate representation for lowering.

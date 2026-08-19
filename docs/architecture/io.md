@@ -88,6 +88,27 @@ fn copy(
 This layout preserves runtime polymorphism without putting the common path
 behind a virtual call.
 
+## Formatting
+
+`print` is a fallible `std.io` function, not a compiler statement. It receives
+`Io`, formats its values through compiler-known core contracts, and streams the
+result to the selected writer:
+
+```zop
+try to print io, value
+```
+
+Formatting an array or tensor uses the canonical
+[tensor-formatting contract](layouts.md#tensor-formatting). The formatter
+includes element type, Shape, placement, Engine kind, address-space tag, and
+Layout before the logical values. It follows the tensor's coordinate map rather
+than dumping raw Engine order.
+
+Formatting does not allocate or copy another tensor. A write failure returns
+through the declared `IoError` channel. The caller retains the writer's flush
+or finish obligation. Device tensors require an explicit CPU transfer before
+host formatting, and `kn` kernels cannot call host `print`.
+
 ## Flush and close obligations
 
 Buffered output is never flushed by a destructor. Hidden destructor I/O cannot

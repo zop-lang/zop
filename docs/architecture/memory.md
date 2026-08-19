@@ -121,7 +121,7 @@ variable name:
 ```zop
 value: i32*
 indirect: i32**
-deep: i32*8
+deep: i32********
 source: const f32*
 destination: f32*
 optional: f32*?
@@ -134,19 +134,42 @@ callback: (fn value: i32 -> i32)*
 Each declaration binds one name to one complete type. C-style declarations
 such as `int *left, right` are invalid; write `left: int*, right: int*`.
 
-Repeated stars express repeated pointer construction. `T*8` is shorthand for
-`T********`; the count is a positive integer. The formatter writes up to three
-stars directly and uses the counted form beyond that. This grammar exists only
-in a type position, so `value * 8` remains multiplication.
+Each `*` expresses exactly one pointer constructor. Zop has no counted pointer
+form: `T*8` is invalid because it resembles multiplication, stride, or an
+eight-element operation. Eight levels are written as `T********`.
 
-`T*1` is `T*`; `T*0` is invalid. A counted form is normalized before type
-identity, so alternate spellings cannot produce distinct application binary
-interfaces.
+Deep indirection should normally receive a name at its declaration boundary:
+
+```zop
+type DeviceHandle = Device********
+```
+
+The formatter preserves repeated stars and never invents a second spelling.
 
 Type constructors compose from left to right. `f32*[n]` is a tensor of
-pointers, while `f32[n]*` is a pointer to a tensor descriptor. `const T*`
-cannot mutate `T`; `T*` may. `T*` is non-null and `T*?` is nullable. A foreign C
+pointers, while `f32[n]*` is a pointer to the tensor ABI value selected by its
+static `Layout` profile and dynamic leaves, not one universal sizes-and-strides
+descriptor. `const T*` cannot mutate `T`; `T*` may. `T*` is non-null and `T*?`
+is nullable. A foreign C
 pointer is nullable unless its imported contract proves otherwise.
+
+`?` applies to the complete pointer type immediately before it:
+
+```zop
+outer_may_be_null: T**?
+inner_may_be_null: (T*?)*
+both_may_be_null: (T*?)*?
+```
+
+Parentheses are required when another pointer constructor follows a nullable
+pointer. The compiler rejects dereference, indexing, arithmetic, or conversion
+of `T*?` to `T*` until control flow proves it non-null. Address-of produces a
+non-null pointer. Foreign declarations default to nullable pointers unless
+their imported contract proves non-null.
+
+Non-null is one safety fact, not a validity claim. Dereference still requires
+an unsafe block plus valid provenance, lifetime, alignment, initialization, and
+access permission.
 
 `&value` takes an address and prefix `*pointer` dereferences one level. The
 compiler applies repeated prefix stars one level at a time:
@@ -162,6 +185,12 @@ Taking an address is safe when the resulting pointer cannot outlive its source.
 Dereferencing, pointer arithmetic or indexing, pointer-integer conversion,
 reinterpretation, raw view construction, foreign deallocation, and calling an
 unsafe function require a lexical `unsafe` block.
+
+`unsafe` must be followed immediately by a non-empty indented block. A missing
+indent is a parse error; it never produces a smaller or implicit unsafe region.
+Every unsafe operation outside the block is rejected independently. The
+formatter preserves the block boundary, and an unsafe block containing no
+unsafe operation is an unnecessary-unsafe diagnostic.
 
 A pointer retains its allocation identity, address space, alignment, and access
 permission. Pointer-to-integer conversion explicitly exposes the address;
@@ -196,18 +225,25 @@ belong to the unsafe block.
 
 ## Tensors and views
 
-A tensor owns its storage. Giving a tensor transfers its descriptor, not the
-underlying elements. A tensor view borrows storage and cannot outlive the source
-tensor.
+A tensor pairs a CuTe-native `Engine` with a language-native `Layout`. An owning
+Engine owns its array; a viewing Engine borrows an iterator into another owner.
+Giving a tensor transfers its Engine and Layout rather than copying elements. A
+tensor view borrows and may advance the source Engine, carries a transformed
+Layout, and cannot outlive the source tensor. The
+[tensor-layout contract](layouts.md) defines the mapping;
+the [indexing contract](indexing.md#ownership-and-mutation) defines slice
+origins, disjoint mutation, and checked general views.
 
 ```zop
 fn row values: f32[m, n], index: int -> view f32[n]
     values[index]
 ```
 
-The compiler infers that the returned view originates from `values`. HIR stores
-that origin even when source omits it. An exported or ambiguous return states
-its possible origins with `from`:
+The compiler infers that the returned view originates from `values`. High-level
+intermediate representation (HIR) stores that ownership origin, advanced
+Engine, and residual Layout even when source omits them. An exported or
+ambiguous return states its
+possible origins with `from`:
 
 ```zop
 fn choose left: f32[n], right: f32[n], use_left: bool
@@ -233,9 +269,11 @@ only when that input is uniquely owned and dead after the operation. Mutation
 requires a mutable borrow. Zop does not perform implicit deep copies or
 copy-on-write.
 
-Static shape and layout data stay in types. Runtime descriptors contain the
-data pointer, runtime dimension and stride values, placement, and ownership
-state.
+Static Shape facts remain in types. Static Engine kind, Layout structure, and
+leaves remain compiler metadata. Runtime values contain only dynamic Engine
+state, distinct dynamic Layout leaves, placement, and ownership state. A fully
+static Layout adds no runtime field. Zop does not impose a full
+sizes-and-strides array on every tensor.
 
 ## GPU lifetimes
 
@@ -243,6 +281,19 @@ A graphics processing unit (GPU) kernel launch borrows every input buffer until
 the completion event. The launch owns its output buffers. Dropping a device
 tensor queues deallocation after its final event; it does not force global
 synchronization.
+
+Successful completion publishes the owned outputs and ends the input borrows.
+A device trap publishes no output and invalidates the complete execution
+context. Every tensor allocated in that context loses storage validity, not
+only values named by the failed kernel. A stale handle may be discarded and its
+saved type or layout metadata may be reported for diagnostics, but it cannot
+read, write, transfer, or launch against device storage.
+
+Invalidation is not deallocation. The runtime destroys the failed context and
+its resources according to the target contract; a tensor destructor never
+attempts an ordinary device free through an already invalid context. Recovery
+creates a new context with new storage identities. No borrow or owned tensor
+crosses from the failed context into the replacement.
 
 Host-to-device and device-to-host transfers are explicit. The type checker
 rejects a host pointer or host tensor passed directly to a kernel.
@@ -279,6 +330,13 @@ points.
 The result is cached per function. Machine-code generation does not repeat the
 ownership analysis for every specialization.
 
+Mojo 1.0's source-level `lit` dialect validates this phase boundary: reference
+types carry origins, then one lifetime pass checks uses, tracks interior
+origins, and inserts implicit destruction before those references lower to
+ordinary pointers. Zop keeps origins as typed-HIR facts instead of exposing
+general lifetime parameters, but applies the same rule before specialization
+or MLIR emission.
+
 Multi-Level Intermediate Representation (MLIR) receives value tensors plus the
 proven alias and ownership facts. One-Shot Bufferize may reuse storage when
 those facts permit it. Ownership-based buffer deallocation assigns and lowers
@@ -309,11 +367,20 @@ specialization and backend optimization introduce their own compile-time cost.
 - Permit local mutation of a uniquely owned value without `mut`.
 - Require `mut` for writable access through a borrowed parameter or view.
 - Reject a view that outlives its tensor.
+- Invalidate every descendant origin proof when its owning ancestor mutates,
+  while preserving a proven-disjoint sibling origin.
+- Insert each implicit destruction point before specialization and preserve it
+  in every concrete instance.
 - Require `from` when a public view may originate from more than one input.
 - Prove a non-null pointer before converting it to `T*`.
+- Reject dereference, indexing, and arithmetic on `T*?` before a non-null proof.
+- Distinguish `T**?`, `(T*?)*`, and `(T*?)*?`.
 - Require lexical `unsafe` for raw dereference, arithmetic, conversion,
   reinterpretation, raw views, foreign release, and unsafe calls.
-- Prove `T*8` and eight repeated stars produce the same type.
+- Reject counted pointer syntax such as `T*8`.
+- Parse `T********` as exactly eight pointer constructors.
+- Reject `unsafe` without a non-empty indented block.
+- Diagnose an unsafe block that contains no unsafe operation.
 - Distinguish a tensor of pointers from a pointer to a tensor descriptor.
 - Prove dropping a raw pointer never releases storage.
 - Prove every safe foreign owner releases exactly once.
@@ -321,6 +388,8 @@ specialization and backend optimization introduce their own compile-time cost.
 - Prove that copying a tensor is explicit.
 - Prove that pure tensor code may reuse a uniquely owned dead buffer.
 - Keep device buffers alive until every borrowing kernel completes.
+- Publish device outputs only after successful completion and reject every
+  storage operation through a context invalidated by `DeviceFault`.
 - Queue device deallocation without an implicit global synchronization.
 - Reject ownership and lifetime violations before MLIR emission.
 
@@ -329,6 +398,8 @@ specialization and backend optimization introduce their own compile-time cost.
 - [Rust ownership](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html)
   and [borrowing](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html)
 - [Mojo ownership and argument conventions](https://docs.modular.com/mojo/manual/values/ownership)
+- [Mojo origin-carrying reference types](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/include/KGEN/LITDialect/LITTypes.td)
+- [Mojo lifetime checking](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/lib/LowerLIT/CheckLifetimes.cpp)
 - [MLIR bufferization](https://mlir.llvm.org/docs/Bufferization/)
 - [MLIR ownership-based buffer deallocation](https://mlir.llvm.org/docs/OwnershipBasedBufferDeallocation/)
 - [Rust MIR](https://rustc-dev-guide.rust-lang.org/mir/index.html)

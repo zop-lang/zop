@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Public compiler pipeline integration tests.
+
 use zop::{backend::mlir_text, frontend::analyze};
 
 #[test]

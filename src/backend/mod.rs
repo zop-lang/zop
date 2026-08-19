@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Verified Multi-Level Intermediate Representation (MLIR) and native-code backends.
 //!
 //! Typed frontend output reaches Cranelift only through the verified MLIR boundary.

@@ -1,6 +1,11 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Restricted scalar intermediate representation to Cranelift executable and object code.
 //!
 //! Just-in-time and object modules share declaration and function construction.
+//! Both modes declare every symbol first, define every function second, and
+//! reject the artifact before executable memory or object bytes escape.
 
 use std::collections::HashMap;
 
@@ -24,19 +29,38 @@ use super::{
     translate::translate,
 };
 
+/// Executable module plus the verified signatures allowed through its safe API.
 pub struct JitArtifact {
+    /// Cranelift owner that keeps finalized executable memory alive.
     module: JITModule,
+
+    /// Exported symbols mapped to their checked invocation contracts.
     functions: HashMap<String, JitFunction>,
 }
 
+/// Cranelift symbol and scalar calling convention for one exported function.
 struct JitFunction {
+    /// Module-local function handle used to obtain finalized code.
     id: FuncId,
+
+    /// Number of `i64` arguments accepted by the bootstrap invocation API.
     parameter_count: usize,
+
+    /// Whether the function produces the required `i64` result.
     returns_value: bool,
 }
 
 impl JitArtifact {
     /// Invoke an exported function with the initial scalar calling convention.
+    ///
+    /// # Errors
+    ///
+    /// Returns a backend diagnostic when the symbol is unknown or its checked
+    /// signature is not an `i64`-returning function of the supplied arity.
+    #[expect(
+        unsafe_code,
+        reason = "the safe wrapper proves the private JIT signature metadata before invocation"
+    )]
     pub fn invoke_i64(&self, name: &str, arguments: &[i64]) -> BackendResult<i64> {
         let function = self
             .functions
@@ -48,16 +72,30 @@ impl JitArtifact {
                 "JIT invocation does not match an i64-returning function signature",
             ));
         }
-        ffi::invoke_i64(self.module.get_finalized_function(function.id), arguments)
+        let pointer = self.module.get_finalized_function(function.id);
+        // SAFETY: `functions` is built from the same verified scalar module as
+        // `module`. The checks above prove this symbol returns `i64` and accepts
+        // exactly the supplied number of `i64` arguments.
+        unsafe { ffi::invoke_i64(pointer, arguments) }
     }
 }
 
 /// Compile typed Zop code into executable memory owned by the returned artifact.
+///
+/// # Errors
+///
+/// Returns a lowering or backend diagnostic when MLIR translation, target
+/// construction, function definition, or finalization fails.
 pub fn compile_jit(hir: &hir::Module) -> BackendResult<JitArtifact> {
     with_module(hir, |module| emit_jit(&translate(module)?))
 }
 
 /// Compile typed Zop code into a native object for the current host.
+///
+/// # Errors
+///
+/// Returns a lowering or backend diagnostic when the host target, translation,
+/// function definition, or object emission fails.
 pub fn compile_object(hir: &hir::Module) -> BackendResult<Vec<u8>> {
     with_module(hir, |module| emit_object(&translate(module)?))
 }

@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Deterministic JavaScript lowering and optimization tests.
+
 use zop::{backend::javascript_text, frontend::analyze, hir::FunctionId};
 
 #[test]

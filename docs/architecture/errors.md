@@ -3,6 +3,10 @@
 Fallible functions return a success value or a typed error. They do not throw
 exceptions or reserve a tuple position for failure.
 
+> **Status:** The bootstrap parses failure signatures, `try to`, `fail with`,
+> and patterned `catch`. Semantic error channels stop before HIR until the type
+> checker and lowering exist.
+
 ## Signatures
 
 ```zop
@@ -113,6 +117,44 @@ fn split input: str -> (str, str) or fails with ParseError
 
 The function returns both strings or one `ParseError`.
 
+## Numeric failures
+
+Ordinary trapping arithmetic does not add an error channel. Recoverable numeric
+members use ordinary typed failures:
+
+- `Overflow` means the mathematical result does not fit the result type.
+- `DivideByZero` means an integer divisor is zero.
+- `InexactDivision` means exact integer division has a nonzero remainder.
+- `PrecisionLoss`, `Underflow`, `InvalidConversion`, and conversion `Overflow`
+  describe explicit numeric-conversion failures.
+
+Quotient and remainder remain one success tuple when requested together; the
+failure channel never occupies another tuple position. The complete operation
+and conversion rules live in the [numeric contract](numerics.md).
+
+## Device faults
+
+A `kn` kernel has no language error channel in the first GPU contract. It cannot
+declare `or fails`, and `try to` cannot propagate through the kernel boundary.
+A fallible numeric or layout operation inside `kn` must be handled locally and
+converted into ordinary output data, a mask, an explicit error buffer, or an
+unrecoverable trap.
+
+Host launch and completion operations are fallible runtime operations. Their
+`DeviceError` sum distinguishes:
+
+- `LaunchRejected`, which occurs before device execution and preserves existing
+  values when the target can prove no work began;
+- `DeviceFault`, which reports a trap or target failure after execution began
+  and invalidates the complete device execution context; and
+- `DeviceLost`, which rejects later access through a handle whose context is
+  already invalid.
+
+The host may catch or map `DeviceError` because it is outside the failed device
+domain. Catching it does not catch the device trap, restore allocations, or make
+partial outputs valid. Recovery creates a fresh context and reconstructs data
+explicitly under the [`fn` and `kn` contract](gpu.md#kernel-traps-and-host-recovery).
+
 ## Lowering
 
 High-level intermediate representation (HIR) records the success and error
@@ -125,7 +167,6 @@ separate and stop compilation.
 
 ## Open decisions
 
-- Device-kernel failures.
 - Cross-module application binary interface representation.
 
 ## Required tests
@@ -142,3 +183,6 @@ separate and stop compilation.
 - Preserve tuples as complete success values.
 - Preserve error types through callable values and interfaces.
 - Lower propagation to explicit control flow without unwinding.
+- Reject a `kn` error signature and unhandled kernel-local fallible result.
+- Distinguish pre-execution `LaunchRejected` from context-invalidating
+  `DeviceFault` and subsequent `DeviceLost`.

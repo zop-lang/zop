@@ -3,6 +3,16 @@ name = "zop"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
+description = "The last systems language you'll ever need"
+license = "MIT"
+repository = "https://github.com/zop-lang/zop"
+readme = "README.md"
+
+[lints.rust]
+missing_docs = "deny"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
 
 [dependencies]
 cranelift-codegen = "=0.134.3"
@@ -23,3 +33,8 @@ toml = "=1.1.3"
 [[bin]]
 name = "zop"
 path = "src/main.rs"
+
+# The profile used for cargo-dist release artifacts.
+[profile.dist]
+inherits = "release"
+lto = "thin"

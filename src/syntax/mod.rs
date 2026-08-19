@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Surface syntax and parsing.
 //!
 //! The frontend consumes this lossless-enough structure for name and type checking.

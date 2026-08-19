@@ -7,16 +7,16 @@ maturity, not a way to discover missing semantics.
 The gate treats typed high-level intermediate representation (HIR) and the
 runtime application binary interface (ABI) as versioned contracts.
 It requires both just-in-time (JIT) and ahead-of-time (AOT) compilation.
-The [roadmap](roadmap.md) schedules the gate at 0.7, the bootstrap proof at
-0.8, and compatibility freeze at 0.9.
+The [roadmap](roadmap.md) schedules the gate at 0.7.0, the bootstrap proof at
+0.8.0, and compatibility freeze at 0.9.0.
 
 ## Entry gate
 
 Every gate must pass before work starts on a compiler written in Zop.
 
 **Language.** The core specification has no open decisions about syntax,
-types, compile-time evaluation, memory, errors, modules, packages, standard
-library boundaries, functions, or concurrency.
+types, numeric semantics, compile-time evaluation, memory, errors, modules,
+packages, standard-library boundaries, functions, or concurrency.
 
 **Stability.** Source semantics, typed HIR, the runtime ABI, and backend
 contracts survive three consecutive releases without a breaking redesign.
@@ -24,10 +24,11 @@ contracts survive three consecutive releases without a breaking redesign.
 **Correctness.** Parser, type checker, lowering, interpreter, JIT, and AOT tests
 cover the supported language. Fuzzing cannot crash the compiler on user input.
 
-**Dogfooding.** Zop ships a formatter, a build or package tool, a
-substantial systems program, and a tensor library or framework. All four
-remain in use across two releases. The compiler workspace also builds through
-the [native Bessemer integration](bsmr.md) from the same manifests and lockfile.
+**Dogfooding.** Zop ships a formatter, language server, documentation generator,
+build or package tool, substantial systems program, and tensor library or
+framework. All remain in use across two releases. The compiler workspace also
+builds through the [native Bessemer integration](bsmr.md) from the same
+manifests and lockfile.
 
 **Toolchain.** The [standard library](stdlib.md),
 [package manager](package-management.md), [workspace system](workspaces.md),
@@ -74,6 +75,8 @@ JIT and AOT tests prove both execution modes.
 The two stages must:
 
 - Accept and reject the same conformance corpus.
+- Produce identical declaration indexes, resolved public signatures,
+  polymorphic HIR, and elaboration instance keys.
 - Produce identical normalized HIR, MLIR, and CLIF for that corpus.
 - Match the reference interpreter in JIT and AOT modes.
 - Pass the same diagnostic, runtime, and ABI tests.

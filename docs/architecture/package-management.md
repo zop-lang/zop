@@ -52,6 +52,7 @@ boundary, so no file belongs to two packages.
 Imports use familiar Python spelling, but bind names only during compilation:
 
 ```zop
+from math import min, max
 import std.tensor
 import geometry.rotation
 import geometry.rotation as rotation
@@ -64,6 +65,8 @@ The import contract is strict:
 - Importing never executes initialization code.
 - Package versions and source locations never appear in source.
 - Dependency aliases come from `zop.toml`.
+- Bundled root modules such as `math` are reserved and cannot be shadowed by a
+  dependency alias.
 - Wildcard and parent-directory imports are not valid.
 - Package and module import graphs are acyclic.
 - Imported declarations remain qualified unless selected explicitly.
@@ -213,6 +216,7 @@ zop tree
 zop outdated
 zop build
 zop test
+zop doc
 zop run
 ```
 
@@ -225,6 +229,9 @@ dependency graph. Artifact destination does not trigger a second resolution.
 
 If required content is absent, the build names the missing package and asks the
 user to fetch or vendor it. It does not contact a registry automatically.
+
+`zop publish` is the only registry-writing package command. It never edits the
+manifest or lockfile, and publication failure leaves no visible partial release.
 
 ## Toolchain selection
 
@@ -281,7 +288,7 @@ parallel. Build artifacts are keyed by:
 - target architecture, operating system, and application binary interface;
 - central processing unit features;
 - graphics processing unit architecture;
-- optimization and safety profile;
+- optimization, safety, and floating-point profiles;
 - relevant `known` arguments.
 
 An interface hash allows downstream packages to reuse checked high-level
@@ -337,6 +344,26 @@ The [Bessemer integration contract](bsmr.md) exposes this graph through a
 versioned read-only protocol. BSMR consumes native Zop manifests and
 lockfiles without a handwritten build file or a second dependency resolver.
 
+## Documentation and publication
+
+A published package includes the checked semantic documentation model, tested
+examples, and declared narrative chapters described by the
+[documentation contract](documentation.md). `zop publish` refuses a package
+whose public declarations are undocumented, whose structured tags are stale,
+whose symbol links do not resolve, or whose documentation examples fail on a
+declared release target.
+
+Documentation checks use the exact source graph, package version, target
+profiles, and toolchain selected for the release. The publisher cannot upload a
+separately generated reference for different source bytes. Registries may
+render the versioned semantic model, but they do not reparse comments or infer
+an API from archive paths.
+
+Narrative documentation paths come from the manifest and do not imply a
+mandatory `docs/src/` layout. Documentation rendering and tests are hermetic
+build actions. They cannot download themes, examples, preprocessors, or remote
+assets.
+
 ## Vendoring and mission builds
 
 `zop vendor` writes the complete locked source graph into one local tree.
@@ -380,10 +407,16 @@ program recoverable and verifiable.
 - Reject wildcard, parent-directory, and private imports.
 - Prove imports execute no runtime initialization.
 - Reject undeclared build-action inputs, outputs, tools, and capabilities.
+- Keep floating-point profiles explicit in target identity and lockstep cache
+  keys.
 - Rebuild a target from only its vendored mission archive.
 - Produce identical artifacts after normalizing paths and timestamps.
 - Reject host/device imports and artifacts at the wrong target boundary.
 - Reject browser capabilities and artifacts at native or device boundaries.
+- Reject publication with missing or invalid public documentation, stale
+  semantic links, or failing documentation examples.
+- Prove a package release and its documentation model derive from the same
+  immutable source and interface identity.
 
 ## References
 

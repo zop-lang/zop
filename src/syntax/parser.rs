@@ -1,6 +1,11 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Module, declaration, type, and block parsing.
 //!
 //! Expression parsing lives beside this stage so declarations do not absorb precedence logic.
+//! Recovery always consumes at least one token, so invalid user input cannot
+//! trap the parser in place.
 
 use crate::{
     diagnostic::{Diagnostic, Diagnostics, Stage},
@@ -14,15 +19,28 @@ use super::{
 };
 
 /// Parse one complete Zop source file.
+///
+/// # Errors
+///
+/// Returns lexical or parse diagnostics when source cannot construct one
+/// complete syntax [`Module`].
 pub fn parse(source: &str) -> Result<Module, Diagnostics> {
     let tokens = lex(source)?;
     Parser::new(source, &tokens).parse_module()
 }
 
+/// Cursor and diagnostic state for one complete source file.
 pub(super) struct Parser<'source, 'tokens> {
+    /// Original source used to recover identifier and literal spellings.
     pub(super) source: &'source str,
+
+    /// Layout-aware token stream ending in [`TokenKind::Eof`].
     pub(super) tokens: &'tokens [Token],
+
+    /// Index of the next token to inspect.
     pub(super) position: usize,
+
+    /// Parse diagnostics accumulated during recovery.
     pub(super) errors: Diagnostics,
 }
 
@@ -179,6 +197,7 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
         }
     }
 
+    /// Parse one required indented block and consume its matching dedent.
     pub(super) fn parse_block(&mut self) -> Option<Block> {
         let indent = self.expect(TokenKind::Indent, "P0009", "expected an indented block")?;
         let mut expressions = Vec::new();
@@ -204,23 +223,28 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
             || (self.at(TokenKind::Identifier) && self.nth(1).kind == TokenKind::Colon)
     }
 
+    /// Return the token under the parser cursor.
     pub(super) fn current(&self) -> Token {
         self.nth(0)
     }
 
+    /// Return the last consumed token, or the first token at file start.
     pub(super) fn previous(&self) -> Token {
         self.tokens[self.position.saturating_sub(1)]
     }
 
+    /// Look ahead without advancing, clamping at the end-of-file token.
     pub(super) fn nth(&self, offset: usize) -> Token {
         let index = (self.position + offset).min(self.tokens.len() - 1);
         self.tokens[index]
     }
 
+    /// Return whether the current token has the requested kind.
     pub(super) fn at(&self, kind: TokenKind) -> bool {
         self.current().kind == kind
     }
 
+    /// Consume one token without advancing beyond end of file.
     pub(super) fn bump(&mut self) -> Token {
         let token = self.current();
         if token.kind != TokenKind::Eof {
@@ -229,10 +253,12 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
         token
     }
 
+    /// Consume the current token only when its kind matches.
     pub(super) fn eat(&mut self, kind: TokenKind) -> Option<Token> {
         self.at(kind).then(|| self.bump())
     }
 
+    /// Consume one required token or record a diagnostic at the cursor.
     pub(super) fn expect(
         &mut self,
         kind: TokenKind,
@@ -247,6 +273,7 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
         }
     }
 
+    /// Consume one required identifier and return its source spelling.
     pub(super) fn expect_identifier(
         &mut self,
         code: &'static str,
@@ -256,14 +283,17 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
         Some(token.text(self.source).to_owned())
     }
 
+    /// Record a parse diagnostic at the current token.
     pub(super) fn error_current(&mut self, code: &'static str, message: impl Into<String>) {
         self.error(code, message, self.current().span);
     }
 
+    /// Record a parse diagnostic at an explicit source range.
     pub(super) fn error(&mut self, code: &'static str, message: impl Into<String>, span: Span) {
         self.errors.push(Diagnostic::new(Stage::Parse, code, message, span));
     }
 
+    /// Recover at the next logical line while guaranteeing forward progress.
     pub(super) fn skip_line(&mut self) {
         let initial_position = self.position;
         while !matches!(

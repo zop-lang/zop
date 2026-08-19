@@ -1,0 +1,64 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+name: Bug report
+description: Report incorrect compiler, runtime, toolchain, or documentation behavior
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: State the failure and its impact in one or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal Zop source
+      description: Reduce the failure to the smallest complete program you can.
+      render: zop
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      description: Include the exact command, complete diagnostic, and exit status.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Cite the relevant architecture contract when one exists.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Zop version or commit
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+
+  - type: input
+    id: target
+    attributes:
+      label: Host and target
+      placeholder: aarch64-apple-darwin to aarch64-apple-darwin
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add traces, minimized artifacts, regressions, or suspected contract boundaries.

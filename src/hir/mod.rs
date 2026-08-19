@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Typed high-level intermediate representation.
 //!
 //! The frontend produces this form. Target-independent lowering consumes it.

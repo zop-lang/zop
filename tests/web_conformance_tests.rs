@@ -1,7 +1,13 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Browser profile and WebGPU Shading Language conformance tests.
+
 use std::collections::HashSet;
 
 use naga::valid::{Capabilities, ValidationFlags, Validator};
 use serde::Deserialize;
+
 use zop::{backend::javascript_text, frontend::analyze};
 
 const PROFILE_SOURCE: &str = include_str!("../conformance/web/profile.toml");
@@ -15,43 +21,83 @@ const KNOWN_TESTS: &[&str] = &[
     "wgsl_reference_fixture_is_valid",
 ];
 
+/// Complete pinned browser-conformance profile consumed by the test suite.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WebProfile {
+    /// Machine schema version required by the parser.
     schema: u32,
+
+    /// Stable profile identifier published with test evidence.
     name: String,
+
+    /// Compiler target governed by this profile.
     target: String,
+
+    /// Maturity label presented to users.
     status: String,
+
+    /// External conformance suites pinned by repository and revision.
     suites: Vec<Suite>,
+
+    /// Individual standards claims and their current evidence.
     requirements: Vec<Requirement>,
 }
 
+/// One external standards suite selected by the browser profile.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Suite {
+    /// Stable suite identifier referenced by requirements.
     id: String,
+
+    /// Canonical source repository.
     repository: String,
+
+    /// Full immutable Git commit used by the profile.
     revision: String,
+
+    /// Selection policy understood by the conformance runner.
     mode: String,
 }
 
+/// Evidence state for one browser requirement.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 enum RequirementStatus {
+    /// Complete conformance evidence exists for the declared profile.
     Supported,
+
+    /// Some required behavior or evidence remains incomplete.
     Partial,
+
+    /// A named compiler or platform dependency prevents implementation.
     Blocked,
+
+    /// Requirement is deliberately excluded from this target profile.
     OutOfScope,
 }
 
+/// One standards claim, its source specification, and executable evidence.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Requirement {
+    /// Stable machine-readable requirement identifier.
     id: String,
+
+    /// Human-facing browser capability group.
     area: String,
+
+    /// Current evidence state.
     status: RequirementStatus,
+
+    /// Authoritative standards document.
     spec: String,
+
+    /// External suites that exercise this requirement.
     suites: Vec<String>,
+
+    /// Repository tests that supply local evidence.
     tests: Vec<String>,
 }
 

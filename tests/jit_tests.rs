@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Cranelift just-in-time compilation and invocation tests.
+
 use zop::{backend::compile_jit, frontend::analyze};
 
 #[test]

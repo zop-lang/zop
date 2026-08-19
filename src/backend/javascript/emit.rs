@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Public JavaScript emission boundary.
 //!
 //! The frontend supplies checked scalar semantics. Lowering selects exact
@@ -8,6 +11,11 @@ use crate::{diagnostic::Diagnostics, hir};
 use super::{lower, printer};
 
 /// Lower one typed module to deterministic, standalone ECMAScript.
+///
+/// # Errors
+///
+/// Returns a lowering diagnostic when HIR requires a device target or a value
+/// representation without exact JavaScript semantics.
 pub fn javascript_text(module: &hir::Module) -> Result<String, Diagnostics> {
     lower::lower(module).map(|module| printer::print(&module))
 }

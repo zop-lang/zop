@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Raw-token and indentation-layout lexer tests.
+
 use zop::lexer::{TokenKind, lex};
 
 fn kinds(source: &str) -> Vec<TokenKind> {

@@ -4,8 +4,8 @@ Zop combines lightweight tasks and channels with compile-time ownership and
 structured lifetimes. Concurrent code should be as direct as Go while retaining
 the data-race resistance and low-level control expected from a systems language.
 
-> **Status:** This page defines target semantics. Task, channel, selection, and
-> scheduler APIs are not implemented. Example spelling is provisional.
+> **Status:** This page defines target semantics and source spelling. Task,
+> channel, selection, and scheduler APIs are not implemented.
 
 ## Principles
 
@@ -89,6 +89,22 @@ Selection waits on channel operations, task completion, timers, and
 cancellation in one expression. If several operations are ready, the runtime
 uses documented fair rotation rather than permanent source-order priority.
 
+```zop
+select
+    value = receive inbox
+        handle value
+
+    result = await worker
+        consume result
+
+    await timeout
+        handle_timeout()
+```
+
+Each branch names one operation and supplies an indented handler. `select`
+returns the selected handler's value. A fallible operation retains its ordinary
+typed error; selection does not discard or merge failure channels.
+
 A non-blocking branch is explicit. Repeating a non-blocking selection without
 progress is diagnosed in debug builds and remains visible to performance tools.
 The deterministic test scheduler controls readiness and selection order.
@@ -130,6 +146,8 @@ floating-point contracts permit it.
 The compiler may map parallel work to vector instructions, a central processing
 unit (CPU) pool, or a graphics processing unit (GPU) target. That mapping is an
 explicit target decision, not a semantic fallback after another backend fails.
+SIMD itself creates no task or concurrent execution; its independent legality,
+ordering, and report contract lives in [SIMD and vectorization](simd.md).
 
 ## Browser boundary
 

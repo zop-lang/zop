@@ -1,12 +1,30 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! The only unsafe boundary in the initial just-in-time compiler.
 //!
 //! Safe artifact code checks names, result types, and arity before entering this module.
 
-#![allow(unsafe_code)]
+#![expect(
+    unsafe_code,
+    reason = "executable JIT pointers are called only through this isolated boundary"
+)]
 
 use super::error::{BackendResult, backend_error};
 
-pub(super) fn invoke_i64(pointer: *const u8, arguments: &[i64]) -> BackendResult<i64> {
+/// Invoke executable memory through the bootstrap's scalar calling convention.
+///
+/// # Safety
+///
+/// `pointer` must name a live `extern "C"` function emitted by the owning
+/// Cranelift module. Its parameters must be exactly `arguments.len()` `i64`
+/// values, and its result must be one `i64`.
+///
+/// # Errors
+///
+/// Returns a backend diagnostic when the bootstrap does not implement the
+/// supplied arity.
+pub(super) unsafe fn invoke_i64(pointer: *const u8, arguments: &[i64]) -> BackendResult<i64> {
     match arguments {
         [] => {
             // SAFETY: Cranelift emitted this pointer from a verified `() -> i64` signature,

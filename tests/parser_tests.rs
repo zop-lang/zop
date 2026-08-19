@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Surface syntax structure and rejection tests.
+
 use zop::syntax::{BinaryOperator, ExpressionKind, FunctionKind, ParameterMode, parse};
 
 #[test]

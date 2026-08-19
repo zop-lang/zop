@@ -38,14 +38,45 @@ and [reference cycles](https://doc.rust-lang.org/stable/book/ch15-06-reference-c
 
 ## Mojo
 
-Mojo shows how ownership can fit a Python-like systems language. Zop draws
-from its immutable, mutable, consuming, and output argument conventions plus
-compiler-tracked origins. These ideas reduce lifetime syntax in ordinary code.
+Mojo 1.0 shows how ownership, compiler-tracked origins, compile-time values,
+and heterogeneous kernels can fit a Python-like systems language. Its open
+compiler makes those features implementation references rather than only
+source-language precedents.
 
-Zop keeps its own source grammar, `fn` and `kn` target boundary, high-level
-intermediate representation (HIR), and backend composition.
+The Mojo compiler uses MLIR for every persistent intermediate representation.
+Its parser emits a source-level `lit` dialect. Lifetime checking consumes
+origin-carrying reference types before lowering. A parametric KGEN (Kernel
+Generator) dialect is simplified before parallel elaboration into concrete
+functions and types.
 
-Sources: [ownership](https://docs.modular.com/mojo/manual/values/ownership) and
+Zop adopts four boundaries:
+
+- resolve peer declaration names, then signatures, then bodies;
+- prove ownership and origins before generic specialization;
+- simplify checked polymorphic IR before producing concrete instances; and
+- isolate parser, semantic-pass, elaboration, lowering, and integration tests.
+
+Zop does not adopt parser-time MLIR emission, universal monomorphization, or an
+LLVM-only backend. Its syntax tree and typed high-level intermediate
+representation (HIR) remain the source of truth for Cranelift, browser, device,
+and reference-interpreter targets. Symbolic tensor extents still avoid
+specialization unless generated code requires their value.
+
+Mojo 1.0 was tagged before the compiler source appeared in the repository. Zop
+therefore pins the open compiler snapshot at commit
+`f66d4d522c34be0a961ffac3dbfc81e30f67942e`. The repository uses the Apache
+License 2.0 with LLVM exceptions, but Modular does not yet accept external
+compiler contributions. Zop may study and adapt its implementation patterns.
+Any copied code must satisfy the repository's license and attribution terms;
+co-development begins only when Modular opens that contribution boundary.
+
+Sources: [Mojo 1.0 release](https://github.com/modular/modular/releases/tag/max/v26.5.0),
+[open compiler repository](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/README.md),
+[compiler walkthrough](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/docs/MojoCompilerWalkthrough.md),
+[declaration resolver](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/lib/MojoParser/DeclResolver.cpp),
+[lifetime checker](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/lib/LowerLIT/CheckLifetimes.cpp),
+[compiler testing](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/docs/testing.md),
+[ownership](https://docs.modular.com/mojo/manual/values/ownership), and
 [origins and lifetimes](https://docs.modular.com/mojo/manual/values/lifetimes).
 
 ## Frontend implementation
@@ -66,9 +97,11 @@ for replacing the bootstrap parser only when a measured implementation deletes
 code while preserving spans, diagnostics, recovery, and compile speed. Zop
 does not adopt a framework merely to replace working concrete code.
 
-Mojo's public language documentation informs the source contract. Modular's
-compiler parser is not public, so Zop does not claim it as an implementation
-reference.
+Mojo's open `MojoParser`, source-level `lit` dialect, lifetime pass,
+elaborator, and isolated test harness now join Logos, Ruff, rust-analyzer, and
+Chumsky as concrete implementation references. Zop borrows their phase and
+verification boundaries without copying Mojo's direct parser-to-MLIR
+representation.
 
 ## OCaml and Haskell
 
@@ -76,10 +109,11 @@ OCaml demonstrates expression-oriented programming and constant-stack tail
 recursion. Haskell demonstrates how recursive definitions can remain the
 ordinary language of functional algorithms.
 
-Zop is strict and plans to make proper tail calls a language guarantee in a
-future milestone. The guarantee will not depend on an optimization profile.
-This is stronger than Glasgow Haskell Compiler (GHC) loopification, which
-targets saturated self-recursive tail calls under optimization.
+Zop makes proper tail calls a language guarantee at the systems-core milestone.
+The guarantee covers compatible self-recursive, mutually recursive, direct, and
+indirect CPU `fn` calls and never depends on an optimization profile. This is
+stronger than Glasgow Haskell Compiler (GHC) loopification, which targets
+saturated self-recursive tail calls under optimization.
 
 Sources: [OCaml tail recursion](https://ocaml.org/docs/loops-recursion),
 [OCaml tail-call assertions](https://ocaml.org/manual/5.5/attributes.html), and
@@ -122,10 +156,11 @@ JAX demonstrates composable program transformations for differentiation,
 vectorization, and compilation. It also shows why transformed code needs
 explicit state and controlled effects.
 
-Zop adopts compiler-owned transformations without requiring a globally
-functional programming style. The effect checker permits local mutation that
-can be converted to value flow and rejects external effects inside a
-differentiated region.
+Zop adopts the analyzable typed programs, explicit state, and controlled effects
+that make such transformations possible without requiring a globally functional
+programming style. It does not make `grad`, vectorization, or another model
+strategy a language feature. Any future compiler-extension boundary must be
+general rather than designed around one JAX transformation.
 
 Sources: [JAX transformations](https://docs.jax.dev/en/latest/key-concepts.html)
 and [stateful computations](https://docs.jax.dev/en/latest/stateful-computations.html).
@@ -136,14 +171,47 @@ Futhark and Dex demonstrate statically checked symbolic array dimensions. JAX
 demonstrates symbolic shape relationships without requiring source-level
 dependent types.
 
-Zop adopts exact symbolic dimension identities for tensor signatures. A
-dimension such as `n` expresses a relationship and does not force code
+Zop adopts exact symbolic extent identities for tensor signatures. An extent
+such as `n` expresses a relationship and does not force code
 specialization. General symbolic arithmetic and an unrestricted constraint
 solver are not part of the initial contract.
 
 Sources: [Futhark size types](https://futhark.readthedocs.io/en/v0.26.3/glossary.html),
 [Dex shape safety](https://google-research.github.io/dex-lang/examples/tutorial.html),
 and [JAX shape polymorphism](https://docs.jax.dev/en/latest/export/shape_poly.html).
+
+## PyTorch tensor surface
+
+PyTorch establishes the tensor vocabulary most framework users already know:
+trailing-dimension broadcasting, `dim`, `unsqueeze`, and allocation-free
+`expand` views implemented with zero strides. Its documentation also warns that
+expanded views alias storage and that broad `squeeze()` can remove a size-one
+batch dimension accidentally.
+
+Zop adopts the broadcast and view behavior while strengthening the core
+contract. Core says `axis`, `extent`, `rank`, and hierarchical layout `mode`;
+frameworks may expose `dim`. Core `squeeze` requires one explicit axis, expanded
+views obey injectivity rules, and materialization requires `Mem`.
+
+Sources: [PyTorch broadcasting](https://docs.pytorch.org/docs/stable/notes/broadcasting.html),
+[`Tensor.expand`](https://docs.pytorch.org/docs/stable/generated/torch.Tensor.expand.html),
+and [`torch.squeeze`](https://docs.pytorch.org/docs/stable/generated/torch.squeeze.html).
+
+## Iterable and layout zipping
+
+Python `zip` stops at the shortest iterable by default and provides
+`strict=True` when equal exhaustion is an asserted invariant. Zop adopts that
+single familiar callable and named policy rather than auto-zipping commas in a
+`for` header or creating separate `zip_equal` and `zip_shortest` APIs. A strict
+dynamic mismatch traps because Zop iteration has no hidden exception channel.
+
+CuTe's similarly named `zipped_divide` is unrelated. It promotes a tiler to one
+layout, performs logical division, then groups tile modes and remainder modes.
+Zop keeps the full name under `Layout` so tensor programmers can use CuTe
+terminology without changing ordinary iterable `zip`.
+
+Sources: [Python `zip`](https://docs.python.org/3/library/functions.html#zip)
+and [PyCuTe `zipped_divide`](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/04_layout_algebra.md#zipped_divide-tiled_divide-flat_divide).
 
 ## Type inference
 
@@ -188,11 +256,125 @@ value must not select the result type.
 
 Zop adopts contextual numeric literals, then adds stricter boundaries.
 Only literals may adopt an expected type. Concrete values never promote, and
-lossy integer conversion is a compile error.
+implicit lossy integer conversion is a compile error. An explicit cast names
+its destination and loss policy; `bitcast` remains representation-only.
 
 Sources: [Rust literal inference](https://doc.rust-lang.org/reference/expressions/literal-expr.html#integer-literal-expressions),
 [JAX type promotion](https://docs.jax.dev/en/latest/jep/9407-type-promotion.html),
 and [NumPy NEP 50](https://numpy.org/neps/nep-0050-scalar-promotion.html).
+
+## Integer arithmetic
+
+C leaves signed overflow undefined and defines unsigned arithmetic modulo the
+type width. Go and Java define deterministic fixed-width wraparound. Rust checks
+ordinary arithmetic in debug builds and wraps when overflow checks are
+disabled. Zig treats overflow as illegal behavior, catches it in safe modes,
+and exposes separate wrapping and saturating operators. Swift checks ordinary
+arithmetic and requires separate overflow operators. Ada checks signed
+arithmetic and provides explicit modular types.
+
+Zop adopts the strongest stable composition: ordinary signed and unsigned
+arithmetic requires every mathematical result to fit its type in every build
+mode. Compile-time overflow is a diagnostic and runtime overflow is a trap.
+Wrapping, saturating, and recoverable operations are explicit. Optimization may
+prove a test unnecessary but cannot change its observable semantics.
+
+Rust establishes numeric dot methods for checked, wrapping, and saturating
+policies. Swift pairs trapping operators with a dot method that reports
+overflow. Zig pairs its ordinary operator with `std.math.add`, which returns an
+overflow error. Zop composes those precedents as `try to left.add right`: `add`
+is an ordinary member whose type declares `Overflow`, while `try to` propagates
+the failure. The member is not a keyword, and the ordinary `+` operator retains
+one context-independent trapping meaning.
+
+Sources: [C integer terminology](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2811.pdf),
+[Go integer overflow](https://go.dev/ref/spec#Integer_overflow),
+[Rust overflow](https://doc.rust-lang.org/reference/expressions/operator-expr.html#overflow),
+[Rust integer methods](https://doc.rust-lang.org/std/primitive.i64.html),
+[Zig integer overflow](https://ziglang.org/documentation/master/#Integer-Overflow),
+[Java integer operations](https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-4.html#jls-4.2.2),
+[Swift overflow operators](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/advancedoperators/#Overflow-Operators),
+[Swift integer methods](https://developer.apple.com/documentation/swift/int64),
+and [Ada integer types](https://www.adaic.org/resources/add_content/standards/22rm/html/RM-3-5-4.html).
+
+## Division and precision
+
+Python and JAX make `/` true division and provide a separate floor-division
+operation. Haskell restricts `/` to fractional types and gives integral values
+separately named quotient operations. MLIR distinguishes floating, truncating,
+floor, ceiling, and exact division in typed operations. WebGPU Shading Language
+does not automatically convert a materialized integer to floating point and has
+no materialized `f64` type.
+
+Zop composes those boundaries. `/` is fractional and preserves one floating
+type. `//` is same-type integer floor division, while named members expose
+truncating, ceiling, Euclidean, exact, and recoverable behavior. Only literals
+may adopt the operator's expected type. A named integer never becomes floating
+point because division has a remainder or because a target prefers another
+type. Non-strict floating semantics use an ordinary trailing parameter of
+`known FloatProfile`, so the call site names weaker behavior without another
+annotation grammar or ambient compiler mode.
+
+Sources: [Python arithmetic](https://docs.python.org/3/reference/expressions.html#binary-arithmetic-operations),
+[JAX true division](https://docs.jax.dev/en/latest/_autosummary/jax.numpy.true_divide.html),
+[GHC numeric classes](https://downloads.haskell.org/ghc/9.14.1/docs/libraries/ghc-9.14.1-da80/GHC-Prelude-Basic.html),
+[MLIR arithmetic operations](https://mlir.llvm.org/docs/Dialects/ArithOps/),
+and [WGSL scalar types](https://www.w3.org/TR/WGSL/#scalar-types).
+
+## Numeric failure and execution domains
+
+Python avoids integer overflow with arbitrary-precision integers but gives up a
+fixed representation and predictable machine cost. NumPy restores fixed-width
+arrays but permits integer wraparound and uses mutable ambient `seterr` policy
+to ignore, warn, raise, call, print, or log floating exceptions. PyTorch follows
+IEEE floating behavior but documents that some linear-algebra backends may
+return nonfinite values, raise, or fail catastrophically when inputs are
+nonfinite. JAX provides valuable NaN instrumentation, but its documentation
+warns about device-host round trips, performance regressions, and false
+positives. JAX also clamps out-of-bounds reads and drops out-of-bounds updates
+because accelerator error propagation is difficult.
+
+Zop rejects those loose seams. Fixed-width integer operators trap in every
+build, while named fallible, wrapping, and saturating members make expected
+overflow concise. Floating operations retain strict IEEE NaN and infinity
+values; an explicit `require_finite` check establishes a flow-sensitive fact
+when an algorithm or vendor backend requires finite input. Optional
+`--check-nonfinite` instrumentation helps find accidental values without
+becoming ambient program semantics.
+
+Swift and Zig provide the strongest default-overflow precedent. Rust provides
+the clearest checked, strict, wrapping, and saturating operation families but
+lets ordinary overflow behavior vary with compiler settings. Zop composes
+Swift and Zig's invariant default with Rust's discoverable named alternatives.
+It uses methods rather than additional operator alphabets so source remains
+readable to researchers and systems programmers.
+
+CUDA demonstrates the honest device-failure boundary. A device assertion aborts
+the kernel, corrupts its context, and invalidates every allocation in that
+context. Zop elevates that hardware fact into a portable execution-domain rule:
+a CPU trap terminates its process, and a device trap invalidates its complete
+context. No successful path pays for transactional tensor rollback, while no
+failed path exposes partial storage as a valid tensor. Host recovery creates a
+fresh context and reconstructs data explicitly.
+
+The end-user composition is strict without demanding routine annotations.
+Ordinary integer and floating expressions use familiar operators. The compiler
+proves safety when it can and otherwise preserves one documented behavior.
+Users name extra policy only when they need recovery, modular arithmetic,
+saturation, finite-only data, or debugging. No build mode, backend, or ambient
+library setting silently changes their choice.
+
+Sources: [Python numeric types](https://docs.python.org/3/library/stdtypes.html#numeric-types-int-float-complex),
+[NumPy data types and overflow](https://numpy.org/doc/stable/user/basics.types.html),
+[NumPy floating error handling](https://numpy.org/doc/2.4/reference/routines.err.html),
+[PyTorch numerical accuracy](https://docs.pytorch.org/docs/stable/notes/numerical_accuracy.html),
+[JAX NaN debugging](https://docs.jax.dev/en/latest/debugging/flags.html#jax-debug-nans-configuration-option-and-context-manager),
+[JAX out-of-bounds indexing](https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html#out-of-bounds-indexing),
+[Swift overflow operators](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/advancedoperators/#Overflow-Operators),
+[Zig integer overflow](https://ziglang.org/documentation/master/#Integer-Overflow),
+[Rust integer methods](https://doc.rust-lang.org/std/primitive.i32.html#method.checked_add),
+[CUDA device assertions](https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#assertion),
+and [CUDA context invalidation](https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TYPES.html).
 
 ## Burn
 
@@ -201,9 +383,9 @@ activity tracking, and gradient checkpointing. Its move away from a backend
 generic on every public tensor also validates keeping execution machinery out
 of user-facing tensor types.
 
-Zop moves these facts into compiler-checked HIR. It does not adopt Rust
-trait towers, runtime backend mismatches, or a dynamic graph as the only
-autodiff model.
+Zop adopts the tensor-type lesson without adopting Burn's automatic
+differentiation strategy as a language feature. Gradient storage and
+checkpointing remain framework choices rather than hidden tensor state.
 
 Sources: [backend-generic removal](https://github.com/tracel-ai/burn/pull/4717),
 [autodiff](https://burn.dev/books/burn/building-blocks/autodiff.html), and
@@ -223,7 +405,7 @@ Zig's `comptime` demonstrates one language for runtime and compile-time
 evaluation. Zop adopts the smaller requirement that selected parameters be
 available during compilation. The source spelling is `name: known Type`.
 Zop does not initially adopt arbitrary compile-time reflection, type
-generation, or mandatory specialization of symbolic dimensions.
+generation, or mandatory specialization of symbolic extents.
 
 Andrew Kelley's
 [Don't Forget to Flush](https://www.youtube.com/watch?v=f30PceqQWko&t=1723s)
@@ -256,8 +438,14 @@ MLIR is the tensor optimizer, not Zop's general central processing unit
 the CPU path and translates its strict base boundary to Cranelift intermediate
 representation.
 
+MLIR's Transform dialect demonstrates an extensible transformation
+intermediate representation without exposing the payload compiler's internal
+objects as a source-language API. Zop may draw on that design only after
+multiple unrelated package transformations justify a public extension boundary.
+
 Sources: [bufferization](https://mlir.llvm.org/docs/Bufferization/) and
-[ownership-based deallocation](https://mlir.llvm.org/docs/OwnershipBasedBufferDeallocation/).
+[ownership-based deallocation](https://mlir.llvm.org/docs/OwnershipBasedBufferDeallocation/),
+and the [Transform dialect](https://mlir.llvm.org/docs/Dialects/Transform/).
 
 ## Cranelift
 
@@ -270,6 +458,49 @@ facts that Cranelift does not define.
 
 Sources: [Cranelift frontend](https://docs.rs/cranelift-frontend/latest/cranelift_frontend/)
 and [object backend](https://docs.rs/cranelift-object/latest/cranelift_object/).
+
+## SIMD and vectorization
+
+Mitchell Hashimoto presents everyday SIMD as a regular five-part schedule:
+broadcast, full-width chunks, lane operations, reduction or store, then a
+tail. His Ghostty example also identifies the practical failure mode of
+heuristic vectorization: a hot loop can quietly become scalar after a compiler
+or source change.
+
+MLIR's Vector dialect supplies retargetable multidimensional vector values,
+transfers, masks, reductions, scans, and contractions. Its own documentation
+places automatic scalar-to-vector raising outside the dialect's scope. Its
+structured transform vectorizes Linalg operations but explicitly does not
+vectorize loops or straight-line scalar code. Its affine vectorizer describes
+its profitability analysis as a simple strawman rather than a universal cost
+model.
+
+The Intermediate Representation Execution Environment (IREE) compiler
+demonstrates the production composition. It reuses upstream MLIR while
+maintaining its own generic vectorization policy, target vector sizes, masking,
+gather-like operations, contractions, and microkernel selection. A microkernel
+is a small target-tuned implementation of one compute operation. IREE's RISC-V
+guidance reports generic vectorization as efficient while preferring
+microkernels as the more stable path. Cranelift supplies fixed-width vector
+static single-assignment (SSA) types plus mask reductions such as `vany_true`,
+`vall_true`, and `vhigh_bits` for fast native code generation.
+
+Zop composes the three layers. Source uses semantic search, map, aggregation,
+scan, reduction, and tensor operations. HIR retains Layout, bounds, aliases,
+effects, traps, and order long enough for Zop to prove the schedule. MLIR
+expresses the accepted vector work, and Cranelift emits the CPU instructions.
+A versioned report makes both vector and deliberate scalar decisions testable.
+This preserves approachable source without trusting an invisible optimizer or
+requiring ordinary users to write target intrinsics.
+
+Sources: [Everyone Should Know SIMD](https://mitchellh.com/writing/everyone-should-know-simd),
+[MLIR Vector dialect](https://mlir.llvm.org/docs/Dialects/Vector/),
+[MLIR structured vectorization](https://mlir.llvm.org/python-bindings/autoapi/mlir/dialects/transform/structured/index.html),
+[MLIR affine super-vectorization](https://mlir.llvm.org/doxygen/SuperVectorize_8cpp.html),
+[MLIR Transform dialect tutorial](https://mlir.llvm.org/docs/Tutorials/transform/),
+[IREE generic vectorization](https://iree.dev/reference/mlir-passes/CodegenCommon/),
+[IREE RISC-V code generation](https://iree.dev/community/blog/2026-07-23-running-models-on-risc-v-with-iree/),
+and [Cranelift intermediate representation](https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/docs/ir.md).
 
 ## WebAssembly and the browser
 
@@ -341,13 +572,58 @@ and [Dioxus Web mutations](https://github.com/DioxusLabs/dioxus/blob/393d190a801
 ## CUTLASS and CuTe IR
 
 NVIDIA's [CuTe IR contribution](https://github.com/NVIDIA/cutlass/pull/3426)
-supplies hierarchical device-layout algebra and a strict lowering boundary to
-upstream MLIR dialects and NVIDIA Virtual Machine (NVVM) operations.
+supplies hierarchical layout types, algebraic operations, static folding, and
+a strict lowering boundary to upstream MLIR dialects and NVIDIA Virtual Machine
+(NVVM) operations.
 
-This is Zop's graphics processing unit (GPU) path.
+[PyCuTe](https://github.com/NVlabs/CuTe) supplies a target-independent,
+executable reference implementation of the same algebra plus layout, tensor,
+copy, contraction, and visualization examples.
 
-Zop should consume and co-develop this work upstream. Zop still owns
-language semantics, kernel extraction, effects, and the host runtime.
+Zop adopts CUTLASS CuTe's `Tensor<Engine, Layout>` model as a language-native
+contract on every target. Engine wraps the iterator or owned array; Layout maps
+logical coordinates to Engine indices. PyCuTe calls its reference equivalent
+`Tensor(Accessor, Layout)`. CPU code evaluates the algebra through Cranelift,
+while `kn` code preserves it into CuTe IR. Zop adds checked bounds, ownership,
+borrow origins, mutation rules, typed dynamic failures, and cross-target
+conformance without inventing a third ABI origin field.
+
+The [CuTe layout paper](https://arxiv.org/abs/2603.02298) explains why a
+hierarchical Shape and Stride must extend traditional flat tensor descriptors
+to represent hardware instructions correctly. The [categorical
+analysis](https://arxiv.org/abs/2601.05972) formalizes the composition, logical
+product, and logical division algebra. CUTLASS's [Tensor and Engine
+definition](https://github.com/NVIDIA/cutlass/blob/6c68991985ca8b09594ac6fd43abbfd5830c4140/media/docs/cpp/cute/03_tensor.md)
+provides the concrete data half of that model, and PyCuTe's
+[`Accessor`](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/05_tensor.md#accessors)
+supplies the executable reference adaptation.
+
+Zop should consume and co-develop CuTe IR upstream. Zop still owns language
+semantics, kernel extraction, effects, and the host runtime.
+
+## Tensor indexing and views
+
+Python supplies readable negative indexing and half-open slice notation, but
+its sequence slices may copy and its dynamic object model is not a systems
+contract. PyTorch supplies the valuable distinction that basic tensor indexing
+creates a view while advanced indexing creates a copy, but the allocation and
+shape boundary remains library behavior. Go demonstrates a compact shared-array
+descriptor and strict bounds, while its capacity field permits reslicing that
+does not fit fixed-shape tensors. Java demonstrates a stable constant-time
+logical length but only for one array level. C++ `mdspan` separates extents,
+mapping, accessor, and data handle without providing language ownership.
+
+Zop composes the precise subset: Python surface syntax and endpoint clipping,
+PyTorch basic-view behavior, Java-like stable Shape, CuTe Engine-plus-Layout
+representation and residual algebra, explicit ownership, and MLIR lowering.
+Named `slice(..., strict=true)` adds a recoverable exact-boundary assertion
+without making routine bracket chunking verbose.
+`.shape`, `.rank`, `extent axis=`, and `numel()` name distinct logical facts;
+Layout `.cosize` names a scalar codomain size when defined. Static Engine and
+Layout profiles erase, only dynamic leaves remain, and no basic selection copies
+storage. The complete
+[indexing rationale](indexing.md#why-this-composition) records the composition
+and primary references.
 
 ## COS 320
 
@@ -371,12 +647,59 @@ ergonomic value and long-term compatibility cost of a broad standard library.
 
 Zop adopts a small mandatory core, capability-aware standard modules, and
 independently versioned official packages. Universal algorithms such as binary
-search belong in `core`; neural-network frameworks do not.
+search belong in `core`; neural-network frameworks do not. Go added predeclared
+`min` and `max` in 1.21 with rigorous NaN propagation, signed-zero ordering,
+infinity behavior, and one-or-more-argument semantics. Zop adopts those
+semantics under explicit imports from the standalone bundled `math` module
+while retaining stricter same-concrete-type operands and explicit tensor
+reduction order. Keeping them out of the prelude preserves ordinary user names
+without making a ubiquitous algorithm depend on the hosted standard library.
 
-Sources: [Rust `core`](https://doc.rust-lang.org/core/),
+Python demonstrates the readability of a flat `math` import path. Zop keeps
+the module allocation-free and legal on compatible bare-metal and device
+targets. The internal core-versus-hosted layering therefore does not leak into
+ordinary mathematical imports, and `math` remains bundled rather than becoming
+an independently versioned package.
+
+Sources: [Python `math`](https://docs.python.org/3/library/math.html),
+[Rust `core`](https://doc.rust-lang.org/core/),
 [Rust `alloc`](https://doc.rust-lang.org/stable/alloc/),
-[Zig memory](https://ziglang.org/documentation/master/#Memory), and
-[Go standard library](https://pkg.go.dev/std).
+[Zig memory](https://ziglang.org/documentation/master/#Memory),
+[Go standard library](https://pkg.go.dev/std), and
+[Go `min` and `max`](https://go.dev/ref/spec#Min_and_max).
+
+## Documentation and editor tooling
+
+JSDoc popularized explicit `@param`, `@returns`, `@throws`, and `@example`
+sections, but it must encode types in comments because JavaScript may not
+provide them. TSDoc makes the tag grammar substantially more rigorous by
+distinguishing summary content, block tags, modifier tags, and inline tags.
+Rustdoc contributes compiler-resolved symbol links, generated signature pages,
+and executable documentation tests. mdBook demonstrates that narrative books
+remain authored Markdown even when their examples are compiled and tested.
+The Language Server Protocol supplies one editor-neutral transport for hover,
+completion, navigation, rename, formatting, diagnostics, inlay hints, and
+semantic tokens, including a standard `documentation` modifier.
+
+Zop adopts `##` as a distinct documentation token inside its existing `#`
+comment family. It uses a small compiler-checked `@` tag schema without
+duplicating types, defaults, effects, or ownership from the signature. One
+semantic documentation model drives editor hover, generated API reference,
+package registries, and executable examples. Narrative books remain separate
+Markdown inputs rendered by the same toolchain. A thin LSP adapter exposes the
+compiler's symbol identities and documentation instead of maintaining a second
+parser or index.
+
+This composition is more structured than Go's positional prose, avoids
+JSDoc's duplicate type language, preserves rustdoc's strongest correctness
+features, and prevents API generation from replacing tutorials and design
+explanation.
+
+Sources: [JSDoc `@param`](https://jsdoc.app/tags-param),
+[TSDoc tag kinds](https://tsdoc.org/pages/spec/tag_kinds/),
+[rustdoc documentation tests](https://doc.rust-lang.org/rustdoc/documentation-tests.html),
+[mdBook](https://rust-lang.github.io/mdBook/), and the
+[Language Server Protocol](https://microsoft.github.io/language-server-protocol/).
 
 ## Packages and builds
 
@@ -454,8 +777,9 @@ No individual influence satisfies all Zop goals:
 - Rust supplies safety, but not a tensor-native CPU and GPU language design.
 - Zig supplies explicit systems control and interface transparency, but not
   checked ownership.
-- Mojo validates ergonomic ownership for a Python-like surface, but Zop
-  chooses a different target and compiler boundary.
+- Mojo validates ergonomic ownership and phased MLIR compilation for a
+  Python-like surface, but Zop retains typed HIR, adaptive specialization,
+  Cranelift, and an independent browser path.
 - Go supplies visible error values, but not a distinct typed error channel with
   mandatory handling.
 - JAX supplies composable numerical transformations, but relies on Python
@@ -470,8 +794,8 @@ No individual influence satisfies all Zop goals:
   systems-language optimizer.
 - Topcoat, Leptos, and Dioxus supply useful web-framework techniques, but each
   commits to runtime and rendering tradeoffs that should remain package choices.
-- CuTe IR supplies device layouts, but not the complete language, runtime, or
-  tensor-compute stack.
+- CuTe supplies the universal layout algebra and a device lowering, but not the
+  complete language, runtime, or tensor-compute stack.
 - COS 320 supplies an executable semantic oracle, but not a production
   language architecture.
 
@@ -481,11 +805,12 @@ generic parameters or runtime guesses.
 
 Zop composes the influences into one contract:
 
-1. Inferred proofs, optional checked annotations, and explicit dynamic checks.
-2. Symbolic tensor dimensions without mandatory code specialization.
+1. Inferred proofs and optional checked annotations without hidden dynamic
+   typing.
+2. Symbolic tensor extents without mandatory code specialization.
 3. Pure compile-time parameters only where generated code needs their values.
-4. Parameter-mode borrowing with first-class origin-tracked tensor views.
-5. Compiler-generated autodiff with explicit gradient values.
+4. Explicit numeric type, quotient, conversion, and precision policy.
+5. Parameter-mode borrowing with first-class origin-tracked tensor views.
 6. Checked ownership without a mandatory garbage collector.
 7. Explicit `Mem`, `Io`, placement, mutation, ownership transfer, and errors.
 8. MLIR tensor semantics, buffer reuse, and GPU lowering.

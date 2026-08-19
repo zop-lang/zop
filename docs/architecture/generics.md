@@ -7,6 +7,11 @@ must be stable before self-hosting.
 
 > **Status:** This is the target language contract and conformance plan. The
 > Rust bootstrap does not implement user-defined generics yet.
+>
+> **Tracking:** [Proposal #2](https://github.com/zop-lang/zop/issues/2) is
+> accepted for the [0.4.0 milestone](https://github.com/zop-lang/zop/milestone/1).
+> Its entry gate keeps implementation behind the fixed-`f32` tensor CPU slice
+> and three proven type-only duplications.
 
 ## Scope
 
@@ -17,7 +22,12 @@ ordinary arguments and an expected result type.
 It does not initially include higher-kinded types, variadic type packs,
 associated types, default type arguments, reflection over type parameters,
 partial specialization, or template metaprogramming. Symbolic tensor
-dimensions and `known` values remain separate concepts.
+extents and `known` values remain separate concepts.
+
+Physical tensor [layout](layouts.md) is also a value property rather than a
+generic parameter. A generic tensor algorithm may inspect or constrain a
+layout without multiplying the public tensor type by backend, placement, or
+schedule parameters.
 
 Implementation starts only after at least three useful definitions would
 otherwise be duplicated with only their types changed. It must land before
@@ -62,7 +72,7 @@ fn map[Input, Output] values: Input[n], transform: fn value: Input -> Output
 options: Option[f32][n]
 ```
 
-`Input` and `Output` are type parameters. `n` is a symbolic dimension.
+`Input` and `Output` are type parameters. `n` is a symbolic extent.
 `Option[f32][n]` is a tensor of `Option[f32]` values. Name resolution assigns
 each bracket argument a kind before type checking; ambiguity is a diagnostic.
 
@@ -191,6 +201,35 @@ is a compile error.
 This model keeps the runtime path statically optimizable without requiring one
 machine-code copy for every source-level type combination.
 
+### Elaboration pipeline
+
+Elaboration is the compiler stage that binds the concrete types, layouts,
+evidence that each type satisfies its contracts, and `known` values required by
+one code-generation instance. It never performs source parsing or discovers a
+missing generic constraint.
+
+The pipeline is ordered:
+
+1. Check the polymorphic HIR body, including ownership, effects, errors,
+   origins, and constraints.
+2. Simplify that checked body before instance expansion by removing unused
+   parameters, dead pure operations, and proven redundant abstractions.
+3. Compute the content-addressed instance key and reject an unbounded recursive
+   expansion before generating another body.
+4. Substitute concrete arguments and evaluate pure `known` expressions.
+5. Verify the resulting concrete HIR before target lowering.
+6. Share or specialize machine code according to the documented adaptive
+   policy.
+
+Independent instance keys may elaborate in parallel. Symbol identity,
+diagnostic order, cache entries, and emitted artifacts remain deterministic.
+The compiler never makes concurrent discovery order part of type identity.
+
+Mojo 1.0 validates the value of a distinct checked parametric IR,
+pre-elaboration simplification, a compile-time interpreter, and parallel
+instance expansion. Zop adopts those phase boundaries without adopting Mojo's
+universal monomorphization or parser-emitted MLIR.
+
 ## Type identity and application binary interfaces
 
 `Container[T]` and `Container[U]` are distinct types unless `T` and `U` are the
@@ -228,6 +267,30 @@ discover dependent errors during instantiation, and expose specialization and
 metaprogramming as a second language. Zop distributes checked HIR, diagnoses
 the definition once, and keeps specialization compiler-owned.
 
+## Delivery plan
+
+Generics progress through five ordered slices. A later slice cannot compensate
+for a failed earlier contract:
+
+1. **Evidence.** Complete the fixed-`f32` tensor CPU slice, name three concrete
+   type-only duplications, and record frontend, memory, artifact-size, and
+   runtime baselines. No generic syntax is implemented in this slice.
+2. **Frontend.** Parse type parameters and `where` clauses, resolve type and
+   shape-argument kinds, then check inference, constraints, ownership, effects,
+   errors, and origins into one polymorphic HIR body.
+3. **Elaboration.** Simplify checked polymorphic HIR, store its interface hash,
+   define content-addressed instance keys, evaluate `known` expressions, and
+   reject unbounded recursive expansion.
+4. **Code generation.** Implement deterministic parallel full specialization
+   as the correctness baseline. Measure shape sharing and typed operation tables
+   against it before selecting development and release policies.
+5. **Adoption.** Migrate the three motivating consumers, delete their concrete
+   duplication, and pass diagnostics, conformance, fuzzing, compile-time,
+   binary-size, and runtime gates.
+
+The milestone closes only after adoption. Writing a parser production or
+generating one successful instance is not delivery.
+
 ## Required tests
 
 - Infer type arguments from values and an expected result.
@@ -239,9 +302,13 @@ the definition once, and keeps specialization compiler-owned.
 - Preserve transparent aliases and distinguish nominal wrappers.
 - Keep user-defined generic containers invariant.
 - Preserve ownership, effects, errors, and view origins through substitution.
-- Distinguish type arguments from symbolic tensor dimensions.
+- Distinguish type arguments from symbolic tensor extents.
 - Deduplicate equal instances across package and workspace boundaries.
 - Reject unbounded recursive instantiation.
+- Prove pre-elaboration simplification preserves generic semantics and reduces
+  the measured instance workload.
+- Produce identical instances, symbols, diagnostics, and artifacts under
+  single-threaded and parallel elaboration.
 - Compare shared and specialized instances against the reference interpreter.
 - Enforce compile-time, binary-size, and runtime budgets for the generic corpus.
 - Require concrete wrappers for foreign exports.
@@ -261,3 +328,4 @@ the definition once, and keeps specialization compiler-owned.
 - [Java type erasure and raw types](https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-4.html)
 - [ISO C++ template FAQ](https://isocpp.org/wiki/faq/templates)
 - [Swift intermediate representation and witness tables](https://github.com/swiftlang/swift/blob/main/docs/SIL/SIL.md)
+- [Mojo compiler elaboration pipeline](https://github.com/modular/modular/blob/f66d4d522c34be0a961ffac3dbfc81e30f67942e/KGEN/docs/MojoCompilerWalkthrough.md)

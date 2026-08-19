@@ -1,7 +1,12 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Typed high-level intermediate representation to verified Multi-Level
 //! Intermediate Representation (MLIR) lowering.
 //!
 //! Both native backends consume the in-memory module produced here.
+//! Emission constructs functions first, fills verified entry blocks second,
+//! then rejects the complete module if MLIR verification fails.
 
 use std::collections::HashMap;
 
@@ -22,10 +27,17 @@ use crate::hir;
 
 use super::error::{BackendResult, lowering_error};
 
+/// Lower one typed module to verified textual MLIR.
+///
+/// # Errors
+///
+/// Returns a lowering diagnostic when the module contains a type, function
+/// kind, expression, or invariant outside the implemented native scalar slice.
 pub fn mlir_text(hir: &hir::Module) -> BackendResult<String> {
     with_module(hir, |module| Ok(module.as_operation().to_string()))
 }
 
+/// Build and verify one in-memory MLIR module before invoking a consumer.
 pub(super) fn with_module<T>(
     hir: &hir::Module,
     compile: impl for<'context> FnOnce(&Module<'context>) -> BackendResult<T>,
@@ -121,12 +133,24 @@ fn emit_body<'context>(
     emitter.append_return(function, None)
 }
 
+/// Per-function state for emitting checked expressions into one MLIR block.
 struct ExpressionEmitter<'context, 'block, 'hir> {
+    /// MLIR context that owns every emitted type, attribute, and operation.
     context: &'context Context,
+
+    /// HIR module used to resolve direct call signatures.
     module: &'hir hir::Module,
+
+    /// Entry block receiving emitted operations.
     block: &'block Block<'context>,
+
+    /// HIR local identities mapped to current MLIR static single-assignment values.
     locals: HashMap<hir::LocalId, Value<'context, 'block>>,
+
+    /// Bootstrap integer type shared by every native scalar operation.
     integer: Type<'context>,
+
+    /// Placeholder location until source-backed MLIR locations are implemented.
     location: Location<'context>,
 }
 

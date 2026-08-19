@@ -19,7 +19,8 @@ quick to learn.
 
 - Strong systems semantics and native performance.
 - Tensor operations that are natural enough to build frameworks from.
-- Compiler-generated autodiff with explicit gradient values.
+- Inspectable CuTe-native Engine and Layout values on every tensor and view.
+- Numeric types, rounding, and precision that never change silently by target.
 - Purity where it enables optimization, without banning mutation.
 - Explicit `Mem` and `Io` capabilities without hidden global state.
 - Structured concurrency with lightweight tasks, channels, and data-race checks.
@@ -29,6 +30,7 @@ quick to learn.
 - An optimized JavaScript browser target with WebAssembly and WebGPU compute
   islands.
 - Executable-pseudocode syntax with succinct Python- and English-like phrasing.
+- Structured, checked documentation and compiler-backed editor tooling.
 - Explicit central processing unit (CPU) and graphics processing unit (GPU)
   targets built on Multi-Level Intermediate Representation (MLIR).
 
@@ -39,7 +41,8 @@ CPU code generation. See the
 [architecture documentation](docs/architecture/README.md) for the compiler
 boundaries and current implementation scope. The
 [roadmap](docs/architecture/roadmap.md) defines the earned gates for
-self-hosting and 1.0.
+self-hosting and 1.0. The [release contract](docs/architecture/releases.md)
+binds those gates to GitHub milestones and cargo-dist publication.
 
 ## Compiler bootstrap
 
@@ -64,6 +67,8 @@ cargo run -- object examples/answer.zop answer.o
 ## Contributing
 
 Open an issue before implementing a new language or compiler contract.
+
+Rust changes follow the [project Rust style guide](docs/style/rust.md).
 
 ## History
 

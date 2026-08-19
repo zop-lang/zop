@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Native object emission tests.
+
 use zop::{backend::compile_object, frontend::analyze};
 
 #[test]

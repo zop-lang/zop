@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Logical newlines and indentation tokens layered over raw lexing.
 //!
 //! Flow:
@@ -19,18 +22,39 @@ use crate::{
 use super::{Token, TokenKind, raw::RawToken};
 
 /// Tokenize one source file and insert logical layout tokens.
+///
+/// # Errors
+///
+/// Returns lexical diagnostics for unrecognized bytes, invalid indentation,
+/// unmatched delimiters, braces, or semicolons.
 pub fn lex(source: &str) -> Result<Vec<Token>, Diagnostics> {
     LayoutLexer::new(source).lex()
 }
 
+/// Stateful pass that converts physical tokens into parser-visible layout.
 struct LayoutLexer<'source> {
+    /// Complete source used to inspect whitespace bytes.
     source: &'source str,
+
+    /// Parser-visible tokens emitted in source order.
     tokens: Vec<Token>,
+
+    /// Lexical failures accumulated before rejecting the file.
     errors: Diagnostics,
+
+    /// Active indentation widths, rooted at zero spaces.
     indentations: Vec<usize>,
+
+    /// Unclosed delimiters paired with their opening source ranges.
     delimiters: Vec<(TokenKind, Span)>,
+
+    /// Whether the next significant token begins a physical line.
     at_line_start: bool,
+
+    /// Whether the current logical line needs a terminating `Newline` token.
     line_has_token: bool,
+
+    /// Leading-space count waiting for the first significant token.
     pending_indentation: usize,
 }
 

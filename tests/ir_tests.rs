@@ -1,3 +1,8 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
+//! Multi-Level Intermediate Representation lowering boundary tests.
+
 use zop::{backend::mlir_text, frontend::analyze};
 
 #[test]

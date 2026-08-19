@@ -144,6 +144,84 @@ at its boundary and receives an explicit optimization diagnostic.
 Frameworks may deliberately choose a virtual DOM or dynamic runtime. Those are
 package costs, not language or browser-backend requirements.
 
+## Tensor layouts
+
+Every tensor carries a CuTe-native [Engine and Layout](layouts.md), but only
+dynamic Engine state and distinct dynamic Layout leaves occupy runtime storage.
+Fully static profiles add no descriptor field. Dense dynamic tensors derive
+compact Strides from their Shape rather than storing redundant values.
+
+Basic [indexing and slicing](indexing.md#performance-contract) never allocates
+or moves elements. Static access may erase the entire descriptor; fixed-rank
+dynamic access performs normalization, one bounds decision, and direct layout
+arithmetic. A negative stride or noncontiguous view is never repaired by a
+hidden contiguous copy. Tensor `numel()` is derived from shape and is not stored
+as a second runtime length.
+
+Layout algebra is also a compile-time cost. Canonicalization, composition,
+tiling, inverse, and CuTe IR lowering are timed and cached by canonical layout
+identity. A new layout representation must prove runtime benefit without
+unbounded specialization, compile latency, or artifact growth.
+
+Performance reports count explicit and inserted `relayout` operations. A
+hidden layout conversion is a correctness failure even when the resulting
+kernel is fast.
+
+Trapping integer arithmetic is invariant across optimization profiles.
+Benchmarks may use explicit wrapping or saturating operations when those are
+the algorithm's semantics. They may not disable traps on ordinary operators to
+manufacture a faster result.
+
+In-place tensor arithmetic receives no hidden rollback buffer or whole-tensor
+preflight pass. A trap invalidates its execution domain instead of making the
+successful path transactional. Recoverable fresh-output arithmetic and an
+explicit `require_finite` scan may allocate, synchronize, or traverse data only
+as stated by their source contracts.
+
+`--check-nonfinite` measures an instrumented debugging artifact, not the normal
+program. Performance comparisons disable it unless the instrumentation itself
+is the subject of the benchmark. Reports state its presence because device
+checks and synchronization can dominate the operation being diagnosed.
+
+Numeric type and quotient mode are equally invariant. A benchmark cannot turn
+integer floor division into truncating division, cast integers to a preferred
+floating type, or enable a weaker floating-point profile without changing the
+benchmark contract. The selected profile appears in reports and cache identity.
+
+The compiler eliminates floor or ceiling correction only after proving operand
+signs make truncating hardware division equivalent. It combines quotient and
+remainder when the target supports both. It never implements floor modulo with
+overflowing intermediate arithmetic. See the [numeric contract](numerics.md).
+
+## CPU vectorization
+
+Zop preserves search, map, predicate aggregation, scans, reductions, tensor
+operations, and Layout facts until the compiler can prove a complete
+fixed-width SIMD schedule. The proof includes bounds, aliases, alignment,
+effects, trap behavior, reduction order, floating-point permissions, and the
+tail. It never inserts a hidden `relayout` or reads an inactive tail lane.
+
+Every optimized artifact may emit the versioned
+[vectorization report](simd.md#vectorization-report). Structural performance
+tests assert the target feature set, lane shape, memory-access class, tail
+strategy, bounds checks, dispatches, allocations, and reason for a scalar
+schedule. A required vector path may not regress to scalar merely because
+machine assembly remains functionally correct.
+
+Zop owns semantic opportunity recognition, legality, target schedule policy,
+and specialized ordered-algorithm patterns. It reuses upstream structured
+vectorization for eligible Linalg operations and upstream vector lowering for
+both paths. An upstream improvement may delete local compiler code after it
+passes the same report and benchmark gates; waiting for that improvement is not
+part of the performance plan.
+
+Benchmarks begin below the predicted crossover, cross it, and extend through
+cache-resident and memory-bound sizes. They compare an optimized scalar
+reference and report throughput, latency, code size, compile time, retired
+instructions, branches, and memory traffic. SIMD is a performance hypothesis
+until those measurements pass; the report proves compiler structure, not
+runtime speed.
+
 ## Proof suite
 
 Every optimized path first passes the semantic interpreter and backend
@@ -167,6 +245,10 @@ conformance corpus. Performance tests then prove progressively stronger facts.
 - Generated output contains no runtime source evaluation or legacy helper.
 - Every compiler-visible copy, allocation, indirect call, host call, and target
   boundary is attributable to a source operation or documented lowering rule.
+- Ordinary in-place tensor arithmetic emits no transactional copy or preflight
+  scan, and nonfinite validation appears only for an explicit contract.
+- Every required SIMD candidate retains its vector schedule through MLIR,
+  CLIF, and pinned machine-code tests, with no hidden tail read or relayout.
 
 ### Runtime benchmarks
 
@@ -231,3 +313,6 @@ next benchmarks toward retained reactive, DOM, and host-boundary work.
 - [Avoiding layout thrashing](https://web.dev/articles/avoid-large-complex-layouts-and-layout-thrashing)
 - [Long Animation Frames API](https://developer.chrome.com/docs/web-platform/long-animation-frames)
 - [WebAssembly 3.0 introduction](https://webassembly.github.io/spec/core/intro/introduction.html)
+- [Everyone Should Know SIMD](https://mitchellh.com/writing/everyone-should-know-simd)
+- [MLIR Vector dialect](https://mlir.llvm.org/docs/Dialects/Vector/)
+- [Cranelift intermediate representation](https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/docs/ir.md)

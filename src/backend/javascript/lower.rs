@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Typed high-level intermediate representation to target JavaScript structure.
 //!
 //! Target placement stops kernels and integer widths without an exact, cheap
@@ -13,6 +16,7 @@ use super::{
     optimize::{self, Constant},
 };
 
+/// Lower a checked host module into the deterministic JavaScript AST.
 pub(super) fn lower(module: &hir::Module) -> BackendResult<ast::Module> {
     let mut functions = Vec::with_capacity(module.functions.len());
     let mut exports = Vec::with_capacity(module.functions.len());
@@ -29,9 +33,15 @@ pub(super) fn lower(module: &hir::Module) -> BackendResult<ast::Module> {
     Ok(ast::Module { functions, exports })
 }
 
+/// Stateful lowering for one host function and its local bindings.
 struct FunctionLowerer<'hir> {
+    /// Complete HIR module used to resolve direct callees.
     module: &'hir hir::Module,
+
+    /// Function whose expressions are being lowered.
     function: &'hir hir::Function,
+
+    /// Local identities that already have a JavaScript binding.
     defined: HashSet<hir::LocalId>,
 }
 

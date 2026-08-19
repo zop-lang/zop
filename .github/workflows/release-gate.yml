@@ -1,0 +1,57 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+name: Release gate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  release-gate:
+    name: Verify earned release
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Skip non-publishing plans
+        if: github.event_name == 'pull_request' || github.event.inputs.tag == 'dry-run'
+        run: echo "Milestone enforcement is reserved for publishing runs."
+
+      - name: Check out release source
+        if: github.event_name != 'pull_request' && github.event.inputs.tag != 'dry-run'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Read GitHub roadmap state
+        if: github.event_name != 'pull_request' && github.event.inputs.tag != 'dry-run'
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag }}"
+          version="${tag#v}"
+          version="${version%%-*}"
+
+          gh api \
+            "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
+            > "$RUNNER_TEMP/milestones.json"
+
+          milestone_number="$(jq --arg version "$version" \
+            '[.[] | select(.title == $version)] | if length == 1 then .[0].number else empty end' \
+            "$RUNNER_TEMP/milestones.json")"
+          test -n "$milestone_number"
+
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/issues?state=all&milestone=$milestone_number&per_page=100" \
+            --slurp \
+            | jq '[.[][]]' \
+            > "$RUNNER_TEMP/issues.json"
+
+          tools/release/check-milestone.sh \
+            "$tag" \
+            "$RUNNER_TEMP/milestones.json" \
+            "$RUNNER_TEMP/issues.json" \
+            docs/architecture/roadmap.md

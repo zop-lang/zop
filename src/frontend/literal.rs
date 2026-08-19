@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Windsor Nguyen.
+// SPDX-License-Identifier: MIT
+
 //! Contextual numeric-literal materialization.
 //!
 //! Function checking supplies an expected type. This module accepts only exact integer
@@ -5,14 +8,21 @@
 
 use crate::hir;
 
+/// Reason a source literal cannot adopt its expected concrete type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum LiteralError {
+    /// Expected type does not belong to the literal's numeric family.
     Incompatible,
+
+    /// Integer-to-float conversion would change the mathematical value.
     InexactInteger,
+
+    /// Value lies outside the finite range represented by the expected type.
     OutOfRange,
 }
 
 impl LiteralError {
+    /// Return the stable diagnostic message for this rejection class.
     #[must_use]
     pub(super) const fn message(self) -> &'static str {
         match self {
@@ -25,6 +35,7 @@ impl LiteralError {
     }
 }
 
+/// Select an exact concrete type for one integer literal.
 pub(super) fn integer_type(
     value: i128,
     expected: Option<hir::Type>,
@@ -43,6 +54,7 @@ pub(super) fn integer_type(
     }
 }
 
+/// Select a finite concrete type for one floating-point literal.
 pub(super) fn float_type(
     value: f64,
     expected: Option<hir::Type>,
