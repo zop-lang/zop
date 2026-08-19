@@ -15,6 +15,7 @@ github-custom-job-permissions = { release-gate = { contents = "read", issues = "
 hosting = "github"
 install-path = "CARGO_HOME"
 installers = ["shell"]
+include = ["NOTICE"]
 plan-jobs = ["./release-gate"]
 pr-run-mode = "plan"
 source-tarball = true

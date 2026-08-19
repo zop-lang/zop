@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Windsor Nguyen.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 //! Per-function name resolution and type checking.
 //!

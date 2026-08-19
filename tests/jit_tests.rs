@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Windsor Nguyen.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 //! Cranelift just-in-time compilation and invocation tests.
 

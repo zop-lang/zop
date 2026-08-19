@@ -1,10 +1,10 @@
 [package]
 name = "zop"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 rust-version = "1.95"
 description = "The last systems language you'll ever need"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/zop-lang/zop"
 readme = "README.md"
 

@@ -11,7 +11,7 @@ license identifier, then a module or crate document:
 
 ```rust
 // Copyright (c) 2024 Windsor Nguyen.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 //! Typed high-level intermediate representation for target-independent checks.
 //!
