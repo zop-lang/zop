@@ -46,6 +46,10 @@ binds those gates to GitHub milestones and cargo-dist publication.
 
 ## Compiler bootstrap
 
+The unreleased bootstrap package is version `0.0.1`. The
+[0.1.0 roadmap milestone](docs/architecture/roadmap.md#010-bootstrap) remains an
+earned capability gate rather than a version implied by merging code.
+
 The current Rust bootstrap implements indentation-aware lexing, parsing,
 scalar name and type checking, typed high-level intermediate representation,
 deterministic ECMAScript modules, verified MLIR, and Cranelift just-in-time and
@@ -80,4 +84,8 @@ and compiler projects that inform the current architecture.
 
 ## License
 
-Zop is licensed under the terms of the [MIT License](LICENSE).
+Zop is licensed under the terms of the
+[Apache License, Version 2.0](LICENSE). The compiler license does not claim
+ownership of programs written in Zop. Future runtime and standard-library code
+embedded into user artifacts will receive an explicit output-license contract
+before it ships.

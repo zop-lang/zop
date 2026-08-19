@@ -7,6 +7,10 @@ gate issues mirror it in the public
 [Zop language roadmap](https://github.com/orgs/zop-lang/projects/1) for
 execution.
 
+Pre-milestone bootstrap manifests may use a `0.0.x` development version. That
+metadata identifies builds but does not create a tag, GitHub Release, or earned
+capability milestone. A public release still requires an exact matching gate.
+
 ## Gate model
 
 Every version has one GitHub milestone named exactly `MAJOR.MINOR.PATCH` and one

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright 2026 Zop contributors
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 

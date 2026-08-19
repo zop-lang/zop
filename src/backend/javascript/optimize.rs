@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Windsor Nguyen.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 //! Pure scalar folding while high-level intermediate representation still
 //! carries exact source types.

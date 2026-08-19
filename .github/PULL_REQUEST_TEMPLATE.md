@@ -1,4 +1,4 @@
-<!-- Copyright 2026 Zop contributors. SPDX-License-Identifier: MIT. -->
+<!-- Copyright 2026 Zop contributors. SPDX-License-Identifier: Apache-2.0. -->
 
 # Pull request
 

@@ -6,6 +6,8 @@ declared stable; before 1.0, each release documents its compatibility boundary.
 
 ## Unreleased
 
+- Set the unreleased bootstrap package version to `0.0.1` and license
+  project-owned work under Apache-2.0.
 - Bootstrap the Rust stage-0 frontend, typed HIR, MLIR verification, Cranelift
   execution and object emission, and deterministic ECMAScript subset.
 - Establish the canonical language, tensor-layout, target, tooling,
