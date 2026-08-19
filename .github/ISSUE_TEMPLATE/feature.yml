@@ -1,0 +1,49 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+name: Feature request
+description: Request an implementation within an accepted Zop contract
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: roadmap
+    attributes:
+      label: Roadmap check
+      description: Language changes belong in the proposal template, not this form.
+      options:
+        - label: I checked the architecture roadmap and this request implements an accepted contract.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete user or compiler problem without prescribing machinery.
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: Accepted contract
+      description: Link the canonical architecture section and quote the owning release criterion.
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Required outcome
+      description: Show the intended source, command, diagnostic, or artifact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Acceptance evidence
+      description: List conformance tests, differential tests, measurements, or target checks that close the issue.
+    validations:
+      required: true

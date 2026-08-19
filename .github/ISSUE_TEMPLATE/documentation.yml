@@ -1,0 +1,38 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+name: Documentation
+description: Report a missing, unclear, stale, or contradictory Zop contract
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Link the page, heading, source declaration, or diagnostic.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Explain what a reader cannot determine or what contradicts another contract.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correction
+    attributes:
+      label: Required correction
+      description: State the precise question the documentation must answer, with sample Zop source when useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Name links, checked examples, generated reference output, or conformance tests that should protect the correction.

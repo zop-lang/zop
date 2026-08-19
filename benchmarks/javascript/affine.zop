@@ -1,0 +1,2 @@
+fn affine value: f64, scale: f64, bias: f64 -> f64
+    value * scale + bias

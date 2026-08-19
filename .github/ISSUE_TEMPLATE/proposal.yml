@@ -1,0 +1,68 @@
+# Copyright 2026 Zop contributors
+# SPDX-License-Identifier: MIT
+
+name: Language or compiler proposal
+description: Propose a new contract before implementation
+title: "proposal: "
+labels:
+  - proposal
+  - research
+body:
+  - type: checkboxes
+    id: preparation
+    attributes:
+      label: Preparation
+      options:
+        - label: I searched existing issues and architecture documents for this contract.
+          required: true
+        - label: I am proposing semantics and evidence before implementation.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Name the user-visible limitation or ambiguity.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Proposed Zop source
+      description: Include ordinary, boundary, and rejected examples.
+      render: zop
+    validations:
+      required: true
+
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Semantic contract
+      description: Define types, evaluation, ownership, effects, failures, and target-independent behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: lowering
+    attributes:
+      label: Compiler and target consequences
+      description: Trace HIR, verification, lowering, runtime, ABI, diagnostics, and unsupported targets.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and lineage
+      description: Credit precedents and explain the tradeoffs of rejecting them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence gate
+      description: State the tests, consumers, measurements, and milestone required before acceptance.
+    validations:
+      required: true
