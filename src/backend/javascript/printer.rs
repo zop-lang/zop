@@ -27,6 +27,16 @@ fn print_function(output: &mut String, function: &ast::Function) {
     write!(output, "function {}(", function.name).expect("writing to String cannot fail");
     write_joined(output, &function.parameters, |output, parameter| output.push_str(parameter));
     output.push_str(") {\n");
+    if function.temporary_count > 0 {
+        output.push_str("    let ");
+        for index in 0..function.temporary_count {
+            if index > 0 {
+                output.push_str(", ");
+            }
+            write!(output, "t{index}").expect("writing to String cannot fail");
+        }
+        output.push_str(";\n");
+    }
     for statement in &function.body {
         output.push_str("    ");
         print_statement(output, statement);
@@ -65,6 +75,17 @@ fn print_expression(output: &mut String, expression: &ast::Expression, parent: u
         E::Identifier(name) | E::Number(name) => output.push_str(name),
         E::Bool(value) => output.push_str(if *value { "true" } else { "false" }),
         E::String(value) => print_string(output, value),
+        E::Set { name, value } => {
+            write!(output, "{name} = ").expect("writing to String cannot fail");
+            print_expression(output, value, 0);
+        }
+        E::Sequence(expressions) => {
+            output.push('(');
+            write_joined(output, expressions, |output, expression| {
+                print_expression(output, expression, 0);
+            });
+            output.push(')');
+        }
         E::Call { function, arguments } => {
             output.push_str(function);
             output.push('(');
@@ -123,9 +144,10 @@ fn write_joined<T>(
 fn precedence(expression: &ast::Expression) -> u8 {
     match expression {
         E::Binary { operator, .. } => operator.precedence(),
+        E::Set { .. } => 0,
         E::Unary { .. } => 8,
         E::Call { .. } => 9,
-        _ => 10,
+        E::Identifier(_) | E::Number(_) | E::Bool(_) | E::String(_) | E::Sequence(_) => 10,
     }
 }
 

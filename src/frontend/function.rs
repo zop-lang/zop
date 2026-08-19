@@ -120,6 +120,15 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
         expression: &syntax::Expression,
         expected: Option<hir::Type>,
     ) -> Option<hir::Expression> {
+        if return_is_nested(expression) {
+            self.checker.error(
+                "S0001",
+                "nested return is not in the scalar frontend slice",
+                expression.span,
+            );
+            return None;
+        }
+
         match &expression.kind {
             syntax::ExpressionKind::Name(name) => self.check_name(name, expression.span),
             syntax::ExpressionKind::Integer(value) => {
@@ -330,7 +339,7 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
             return None;
         };
         let signature = self.checker.signature(id);
-        let arguments = self.check_arguments(arguments, &signature)?;
+        let arguments = self.check_arguments(arguments, &signature, span)?;
         Some(hir::Expression::new(
             hir::ExpressionKind::Call { function: id, arguments },
             signature.result,
@@ -342,8 +351,10 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
         &mut self,
         arguments: &[syntax::Argument],
         signature: &Signature,
-    ) -> Option<Vec<hir::Expression>> {
-        let mut ordered = vec![None; signature.parameters.len()];
+        call_span: Span,
+    ) -> Option<Vec<hir::CallArgument>> {
+        let mut checked = Vec::with_capacity(arguments.len());
+        let mut supplied = vec![false; signature.parameters.len()];
         let mut positional = 0;
         let mut saw_label = false;
 
@@ -361,11 +372,11 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
             let Some(value) = self.check_expression_as(&argument.value, expected) else {
                 continue;
             };
-            let Some(index) = index.filter(|index| *index < ordered.len()) else {
+            let Some(index) = index.filter(|index| *index < supplied.len()) else {
                 self.checker.error("S0006", "argument does not match a parameter", argument.span);
                 continue;
             };
-            if ordered[index].is_some() {
+            if supplied[index] {
                 self.checker.error("S0007", "parameter is supplied more than once", argument.span);
                 continue;
             }
@@ -376,14 +387,19 @@ impl<'checker, 'syntax> FunctionContext<'checker, 'syntax> {
                     argument.span,
                 );
             }
-            ordered[index] = Some(value);
+            supplied[index] = true;
+            checked.push(hir::CallArgument {
+                parameter: hir::ParameterId(index),
+                value,
+                span: argument.span,
+            });
         }
 
-        if ordered.iter().any(Option::is_none) {
-            self.checker.error("S0006", "call is missing a required argument", Span::default());
+        if supplied.iter().any(|supplied| !supplied) {
+            self.checker.error("S0006", "call is missing a required argument", call_span);
             return None;
         }
-        Some(ordered.into_iter().flatten().collect())
+        Some(checked)
     }
 
     fn argument_index(
@@ -488,13 +504,50 @@ fn binary_type(
         operator,
         S::Equal | S::NotEqual | S::Less | S::LessEqual | S::Greater | S::GreaterEqual
     );
+    let relational = matches!(operator, S::Less | S::LessEqual | S::Greater | S::GreaterEqual);
     let boolean = matches!(operator, S::And | S::Or);
 
-    if left != right || (boolean && left != hir::Type::Bool) {
+    if left != right || (boolean && left != hir::Type::Bool) || (relational && !left.is_numeric()) {
         return None;
     }
     if !comparison && !boolean && !left.is_numeric() {
         return None;
     }
     Some((hir_operator, if comparison { hir::Type::Bool } else { left }))
+}
+
+fn return_is_nested(expression: &syntax::Expression) -> bool {
+    match &expression.kind {
+        syntax::ExpressionKind::Return(value) => value.as_deref().is_some_and(contains_return),
+        _ => contains_return(expression),
+    }
+}
+
+fn contains_return(expression: &syntax::Expression) -> bool {
+    use syntax::ExpressionKind as E;
+    match &expression.kind {
+        E::Return(_) => true,
+        E::Assign { target, value } => contains_return(target) || contains_return(value),
+        E::Unary { operand, .. } => contains_return(operand),
+        E::Binary { left, right, .. } => contains_return(left) || contains_return(right),
+        E::Member { object, .. } => contains_return(object),
+        E::Call { callee, arguments } => {
+            contains_return(callee)
+                || arguments.iter().any(|argument| contains_return(&argument.value))
+        }
+        E::If { condition, then_block, else_block } => {
+            contains_return(condition)
+                || block_contains_return(then_block)
+                || else_block.as_ref().is_some_and(block_contains_return)
+        }
+        E::Fail(error) | E::Try(error) => contains_return(error),
+        E::Catch { expression, arms } => {
+            contains_return(expression) || arms.iter().any(|arm| block_contains_return(&arm.body))
+        }
+        E::Name(_) | E::Integer(_) | E::Float(_) | E::Bool(_) | E::String(_) => false,
+    }
+}
+
+fn block_contains_return(block: &syntax::Block) -> bool {
+    block.expressions.iter().any(contains_return)
 }

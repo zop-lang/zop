@@ -144,8 +144,8 @@ struct ExpressionEmitter<'context, 'block, 'hir> {
     /// Entry block receiving emitted operations.
     block: &'block Block<'context>,
 
-    /// HIR local identities mapped to current MLIR static single-assignment values.
-    locals: HashMap<hir::LocalId, Value<'context, 'block>>,
+    /// HIR locals mapped to MLIR values, with `None` representing a unit binding.
+    locals: HashMap<hir::LocalId, Option<Value<'context, 'block>>>,
 
     /// Bootstrap integer type shared by every native scalar operation.
     integer: Type<'context>,
@@ -168,7 +168,7 @@ impl<'context, 'block, 'hir> ExpressionEmitter<'context, 'block, 'hir> {
             .map(|(index, parameter)| {
                 block
                     .argument(index)
-                    .map(|value| (parameter.id, Value::from(value)))
+                    .map(|value| (parameter.id, Some(Value::from(value))))
                     .map_err(|error| lowering_error("M0003", error.to_string()))
             })
             .collect::<BackendResult<_>>()?;
@@ -192,11 +192,10 @@ impl<'context, 'block, 'hir> ExpressionEmitter<'context, 'block, 'hir> {
                 .locals
                 .get(id)
                 .copied()
-                .map(Some)
                 .ok_or_else(|| lowering_error("M0003", "HIR references an unknown local")),
             E::Integer(value) => self.integer(*value).map(Some),
             E::Assign { local, value } => {
-                let value = require_value(self.emit(value)?)?;
+                let value = self.emit(value)?;
                 self.locals.insert(*local, value);
                 Ok(None)
             }
@@ -246,21 +245,34 @@ impl<'context, 'block, 'hir> ExpressionEmitter<'context, 'block, 'hir> {
     fn emit_call(
         &mut self,
         function: hir::FunctionId,
-        arguments: &[hir::Expression],
+        arguments: &[hir::CallArgument],
     ) -> BackendResult<Option<Value<'context, 'block>>> {
-        let (name, result) = {
+        let (name, result, parameter_count) = {
             let target = self
                 .module
                 .functions
                 .get(function.0)
                 .ok_or_else(|| lowering_error("M0003", "HIR references an unknown function"))?;
             require_scalar_signature(target)?;
-            (target.name.clone(), target.result)
+            (target.name.clone(), target.result, target.parameters.len())
         };
-        let arguments = arguments
-            .iter()
-            .map(|argument| self.emit(argument).and_then(require_value))
-            .collect::<BackendResult<Vec<_>>>()?;
+        let mut ordered = vec![None; parameter_count];
+        for argument in arguments {
+            let value = require_value(self.emit(&argument.value)?)?;
+            let Some(slot) = ordered.get_mut(argument.parameter.0) else {
+                return Err(lowering_error(
+                    "M0003",
+                    "call argument references an unknown parameter",
+                ));
+            };
+            if slot.replace(value).is_some() {
+                return Err(lowering_error("M0003", "call supplies one parameter more than once"));
+            }
+        }
+        if ordered.iter().any(Option::is_none) {
+            return Err(lowering_error("M0003", "call is missing a parameter value"));
+        }
+        let arguments = ordered.into_iter().flatten().collect::<Vec<_>>();
         let results = if result == hir::Type::Unit { vec![] } else { vec![self.integer] };
         let call = self.block.append_operation(func::call(
             self.context,

@@ -43,6 +43,9 @@ struct FunctionLowerer<'hir> {
 
     /// Local identities that already have a JavaScript binding.
     defined: HashSet<hir::LocalId>,
+
+    /// First unused scratch binding for reordered call arguments.
+    next_temporary: usize,
 }
 
 impl<'hir> FunctionLowerer<'hir> {
@@ -58,14 +61,19 @@ impl<'hir> FunctionLowerer<'hir> {
                 return Err(lowering_error("J0003", "HIR parameter identifiers are not unique"));
             }
         }
-        Ok(Self { module, function, defined })
+        Ok(Self { module, function, defined, next_temporary: 0 })
     }
 
     fn lower(mut self) -> BackendResult<ast::Function> {
         let parameters =
             self.function.parameters.iter().map(|parameter| local_name(parameter.id)).collect();
         let body = self.lower_body()?;
-        Ok(ast::Function { name: function_name(self.function.id), parameters, body })
+        Ok(ast::Function {
+            name: function_name(self.function.id),
+            parameters,
+            temporary_count: self.next_temporary,
+            body,
+        })
     }
 
     fn lower_body(&mut self) -> BackendResult<Vec<ast::Statement>> {
@@ -122,7 +130,7 @@ impl<'hir> FunctionLowerer<'hir> {
         }
     }
 
-    fn lower_expression(&self, expression: &hir::Expression) -> BackendResult<ast::Expression> {
+    fn lower_expression(&mut self, expression: &hir::Expression) -> BackendResult<ast::Expression> {
         supported_type(expression.ty)?;
         if let Some(constant) = optimize::fold(expression) {
             return Ok(lower_constant(constant));
@@ -156,7 +164,7 @@ impl<'hir> FunctionLowerer<'hir> {
     }
 
     fn lower_unary(
-        &self,
+        &mut self,
         operator: hir::UnaryOperator,
         operand: &hir::Expression,
         ty: hir::Type,
@@ -182,7 +190,7 @@ impl<'hir> FunctionLowerer<'hir> {
     }
 
     fn lower_binary(
-        &self,
+        &mut self,
         operator: hir::BinaryOperator,
         left: &hir::Expression,
         right: &hir::Expression,
@@ -198,18 +206,50 @@ impl<'hir> FunctionLowerer<'hir> {
     }
 
     fn lower_call(
-        &self,
+        &mut self,
         function: hir::FunctionId,
-        arguments: &[hir::Expression],
+        arguments: &[hir::CallArgument],
     ) -> BackendResult<ast::Expression> {
         let Some(callee) = self.module.functions.get(function.0) else {
             return Err(lowering_error("J0003", "HIR references an unknown function"));
         };
-        let arguments = arguments
-            .iter()
-            .map(|argument| self.lower_expression(argument))
-            .collect::<BackendResult<Vec<_>>>()?;
-        Ok(ast::Expression::Call { function: function_name(callee.id), arguments })
+        let parameter_count = callee.parameters.len();
+        let callee = function_name(callee.id);
+        let mut evaluated = Vec::with_capacity(arguments.len());
+        let mut supplied = vec![false; parameter_count];
+        for argument in arguments {
+            let Some(slot) = supplied.get_mut(argument.parameter.0) else {
+                return Err(lowering_error(
+                    "J0003",
+                    "call argument references an unknown parameter",
+                ));
+            };
+            if *slot {
+                return Err(lowering_error("J0003", "call supplies one parameter more than once"));
+            }
+            *slot = true;
+            evaluated.push((argument.parameter, self.lower_expression(&argument.value)?));
+        }
+        if supplied.iter().any(|supplied| !supplied) {
+            return Err(lowering_error("J0003", "call is missing a parameter value"));
+        }
+
+        if evaluated.iter().enumerate().all(|(index, (parameter, _))| parameter.0 == index) {
+            let arguments = evaluated.into_iter().map(|(_, value)| value).collect();
+            return Ok(ast::Expression::Call { function: callee, arguments });
+        }
+
+        let mut sequence = Vec::with_capacity(evaluated.len() + 1);
+        let mut ordered = std::iter::repeat_with(|| None).take(parameter_count).collect::<Vec<_>>();
+        for (parameter, value) in evaluated {
+            let name = temporary_name(self.next_temporary);
+            self.next_temporary += 1;
+            sequence.push(ast::Expression::Set { name: name.clone(), value: Box::new(value) });
+            ordered[parameter.0] = Some(ast::Expression::Identifier(name));
+        }
+        let arguments = ordered.into_iter().flatten().collect();
+        sequence.push(ast::Expression::Call { function: callee, arguments });
+        Ok(ast::Expression::Sequence(sequence))
     }
 }
 
@@ -342,6 +382,10 @@ fn function_name(id: hir::FunctionId) -> String {
 
 fn local_name(id: hir::LocalId) -> String {
     format!("l{}", id.0)
+}
+
+fn temporary_name(index: usize) -> String {
+    format!("t{index}")
 }
 
 fn may_have_effect(expression: &hir::Expression) -> bool {

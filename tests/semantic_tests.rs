@@ -38,7 +38,7 @@ fn unknown_names_are_rejected_before_lowering() {
 }
 
 #[test]
-fn named_arguments_are_arranged_in_parameter_order() {
+fn named_arguments_retain_source_evaluation_order() {
     let source = concat!(
         "fn subtract left: i64, right: i64 -> i64\n",
         "    left - right\n",
@@ -51,8 +51,28 @@ fn named_arguments_are_arranged_in_parameter_order() {
         panic!("expected call expression");
     };
 
-    assert!(matches!(arguments[0].kind, ExpressionKind::Integer(5)));
-    assert!(matches!(arguments[1].kind, ExpressionKind::Integer(2)));
+    assert_eq!(arguments[0].parameter.0, 1);
+    assert_eq!(arguments[1].parameter.0, 0);
+    assert!(matches!(arguments[0].value.kind, ExpressionKind::Integer(2)));
+    assert!(matches!(arguments[1].value.kind, ExpressionKind::Integer(5)));
+}
+
+#[test]
+fn missing_arguments_point_to_the_call() {
+    let source = concat!(
+        "fn choose left: i64, right: i64 -> i64\n",
+        "    left\n",
+        "fn main -> i64\n",
+        "    choose 1\n",
+    );
+    let errors = analyze(source).expect_err("missing argument must fail");
+    let error = errors
+        .iter()
+        .find(|error| error.code == "S0006")
+        .expect("missing argument diagnostic should exist");
+
+    assert_eq!(error.span.start, source.rfind("choose 1").expect("call should exist"));
+    assert_eq!(error.span.end, source.rfind("choose 1").expect("call should exist") + 8);
 }
 
 #[test]
@@ -143,6 +163,39 @@ fn expressions_cannot_follow_return() {
 }
 
 #[test]
+fn nested_returns_stop_at_the_frontend_boundary() {
+    let source = "fn answer -> i64\n    value = return 42\n    0\n";
+    let errors = analyze(source).expect_err("nested return must not reach lowering");
+
+    assert!(errors.iter().any(|error| error.code == "S0001"));
+}
+
+#[test]
+fn relational_operators_require_numeric_operands() {
+    let source = concat!(
+        "fn booleans left: bool, right: bool -> bool\n",
+        "    left < right\n",
+        "fn strings left: str, right: str -> bool\n",
+        "    left <= right\n",
+        "fn touch\n",
+        "    value = 1\n",
+        "fn units -> bool\n",
+        "    touch() > touch()\n",
+    );
+    let errors = analyze(source).expect_err("nonnumeric ordering must fail");
+
+    assert_eq!(
+        errors
+            .iter()
+            .filter(|error| {
+                error.code == "S0004" && error.message == "binary operands have incompatible types"
+            })
+            .count(),
+        3
+    );
+}
+
+#[test]
 fn numeric_literals_adopt_the_surrounding_concrete_type() {
     let source = concat!(
         "fn add_one value: f32 -> f32\n",
@@ -163,7 +216,7 @@ fn numeric_literals_adopt_the_surrounding_concrete_type() {
     };
 
     assert_eq!(right.ty, Type::F32);
-    assert_eq!(arguments[0].ty, Type::F32);
+    assert_eq!(arguments[0].value.ty, Type::F32);
 }
 
 #[test]

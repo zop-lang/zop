@@ -92,13 +92,17 @@ impl<'source> LayoutLexer<'source> {
     }
 
     fn whitespace(&mut self, span: Span) {
-        if !self.at_line_start || !self.delimiters.is_empty() {
+        if !self.at_line_start {
             return;
         }
 
         let whitespace = &self.source[span.start..span.end];
         if whitespace.contains('\t') {
             self.error("L0002", "tabs are not allowed in indentation", span);
+        }
+
+        if !self.delimiters.is_empty() {
+            return;
         }
 
         self.pending_indentation = whitespace.bytes().filter(|byte| *byte == b' ').count();

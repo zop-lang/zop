@@ -133,3 +133,25 @@ fn unused_composite_expressions_preserve_nested_calls() {
 
     assert!(javascript.contains("b0() + 1;"));
 }
+
+#[test]
+fn named_arguments_preserve_source_order_in_javascript() {
+    let source = concat!(
+        "fn observe value: f64 -> f64\n",
+        "    value\n",
+        "fn subtract left: f64, right: f64 -> f64\n",
+        "    left - right\n",
+        "fn main -> f64\n",
+        "    subtract right=observe(2), left=observe(5)\n",
+    );
+    let hir = analyze(source).expect("named call should type-check");
+    let javascript = javascript_text(&hir).expect("named call should lower");
+    let main = javascript.split("function b2").nth(1).expect("main function should exist");
+    let right = main.find("b0(2)").expect("right argument should be evaluated");
+    let left = main.find("b0(5)").expect("left argument should be evaluated");
+    let subtract = main.find("b1(").expect("callee should be invoked");
+
+    assert!(right < left);
+    assert!(left < subtract);
+    assert!(main.contains("return (t0 = b0(2), t1 = b0(5), b1(t1, t0));"));
+}

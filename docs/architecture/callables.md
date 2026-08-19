@@ -116,9 +116,10 @@ Positional arguments precede named arguments. An argument cannot be supplied
 twice. Unknown and missing labels are compile errors.
 
 Arguments evaluate from left to right in source order. Name resolution then
-orders them for high-level intermediate representation (HIR) and backend
-lowering. Parameter labels are part of an exported source contract; renaming
-one is a breaking change.
+records each destination parameter without reordering high-level intermediate
+representation (HIR). Lowering evaluates the recorded sequence, then places the
+resulting values in calling-convention order. Parameter labels are part of an
+exported source contract; renaming one is a breaking change.
 
 ## Default arguments
 

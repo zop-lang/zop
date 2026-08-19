@@ -34,8 +34,10 @@ lexical locals. Forward calls resolve before the callee body is checked. Direct
 and mutual recursion require explicit result types; callers outside a recursive
 component do not. The body pass checks scalar expressions, stable assignment
 types, function calls, argument labels, and return types. Named arguments
-evaluate in source order and enter typed HIR in parameter order. Numeric
-literals adopt an immediate expected type, but concrete values never promote.
+enter typed HIR in source order with an explicit destination parameter. Each
+backend evaluates that sequence before placing values in calling-convention
+order. Numeric literals adopt an immediate expected type, but concrete values
+never promote.
 Control flow, tensors, ownership, effects, and error channels stop with
 structured diagnostics before HIR. Compile-time parameters are not implemented
 in the bootstrap grammar yet.
@@ -254,6 +256,11 @@ or inherits endpoint behavior.
 The frontend lowers a function's final expression to the same return terminator
 as an explicit `return`. `return` exits the function rather than the nearest
 source block.
+
+The scalar bootstrap accepts `return` as a complete body expression. A return
+nested inside another expression is rejected before HIR until control-flow HIR
+can preserve evaluation before that exit; the target language contract still
+permits `return` anywhere in a body.
 
 Resolution keeps type names, globals, functions, and lexical locals in
 separate contexts. A declaration inside one branch or block cannot escape its

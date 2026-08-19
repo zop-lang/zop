@@ -208,7 +208,17 @@ impl<'source, 'tokens> Parser<'source, 'tokens> {
             }
 
             match self.parse_expression() {
-                Some(expression) => expressions.push(expression),
+                Some(expression) => {
+                    expressions.push(expression);
+                    if !matches!(
+                        self.current().kind,
+                        TokenKind::Newline | TokenKind::Dedent | TokenKind::Eof
+                    ) {
+                        self.error_current("P0011", "expected a newline after the expression");
+                        self.skip_line();
+                        continue;
+                    }
+                }
                 None => self.skip_line(),
             }
             self.eat(TokenKind::Newline);

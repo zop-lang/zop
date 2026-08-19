@@ -8,6 +8,6 @@
 mod types;
 
 pub use types::{
-    BinaryOperator, Block, Expression, ExpressionKind, Function, FunctionId, FunctionKind, LocalId,
-    Module, Parameter, ParameterMode, Type, UnaryOperator,
+    BinaryOperator, Block, CallArgument, Expression, ExpressionKind, Function, FunctionId,
+    FunctionKind, LocalId, Module, Parameter, ParameterId, ParameterMode, Type, UnaryOperator,
 };

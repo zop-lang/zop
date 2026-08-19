@@ -83,6 +83,13 @@ pub struct Parameter {
     pub span: Span,
 }
 
+/// Stable calling-convention position within one callee signature.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ParameterId(
+    /// Zero-based slot in [`Function::parameters`].
+    pub usize,
+);
+
 /// Checked ownership access for one parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParameterMode {
@@ -230,8 +237,8 @@ pub enum ExpressionKind {
         /// Stable callee identity.
         function: FunctionId,
 
-        /// Checked values in parameter order, after source-order evaluation.
-        arguments: Vec<Expression>,
+        /// Checked arguments in source evaluation order with explicit parameter placement.
+        arguments: Vec<CallArgument>,
     },
 
     /// Early exit from the current function.
@@ -239,6 +246,19 @@ pub enum ExpressionKind {
         /// Returned value, or absence for a unit result.
         Option<Box<Expression>>,
     ),
+}
+
+/// One checked call argument before target-specific evaluation and placement.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CallArgument {
+    /// Callee parameter that receives the evaluated value.
+    pub parameter: ParameterId,
+
+    /// Value evaluated at this position in the source argument list.
+    pub value: Expression,
+
+    /// Source range covering the optional label and value.
+    pub span: Span,
 }
 
 /// Stable local-binding identity within one [`Function`].

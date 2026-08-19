@@ -59,6 +59,15 @@ fn leading_tabs_are_rejected() {
 }
 
 #[test]
+fn leading_tabs_inside_delimiters_are_rejected() {
+    let source = "fn identity(\n\tvalue: i64,\n) -> i64\n    value\n";
+    let errors = lex(source).expect_err("delimiter nesting must not hide tab indentation");
+
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].code, "L0002");
+}
+
+#[test]
 fn dedents_must_match_an_enclosing_block() {
     let source = "fn main\n    if true\n        1\n      2\n";
     let errors = lex(source).expect_err("misaligned dedent must fail");

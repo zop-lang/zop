@@ -55,3 +55,19 @@ fn unit_calls_do_not_invent_result_values() {
 
     assert_eq!(jit.invoke_i64("answer", &[]).expect("call should succeed"), 42);
 }
+
+#[test]
+fn unit_bindings_do_not_require_machine_values() {
+    let source = concat!(
+        "fn touch\n",
+        "    value = 1\n",
+        "fn answer -> i64\n",
+        "    token = touch()\n",
+        "    token\n",
+        "    42\n",
+    );
+    let hir = analyze(source).expect("unit binding should type-check");
+    let jit = compile_jit(&hir).expect("unit binding should lower without an SSA value");
+
+    assert_eq!(jit.invoke_i64("answer", &[]).expect("call should succeed"), 42);
+}

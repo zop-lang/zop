@@ -51,6 +51,19 @@ fn named_arguments_require_equals() {
 }
 
 #[test]
+fn expressions_require_a_physical_line_boundary() {
+    let source = concat!(
+        "fn identity value: i64 -> i64\n",
+        "    value\n",
+        "fn main y: i64 -> i64\n",
+        "    identity y y\n",
+    );
+    let errors = parse(source).expect_err("same-line expressions must not split implicitly");
+
+    assert!(errors.iter().any(|error| error.code == "P0011"));
+}
+
+#[test]
 fn multiline_parameters_require_commas_and_accept_a_trailing_comma() {
     let source = "fn add(\n    x: i64,\n    mut y: i64,\n) -> i64\n    x + y\n";
     let module = parse(source).expect("multiline declaration should parse");

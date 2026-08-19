@@ -22,6 +22,9 @@ pub(super) struct Function {
     /// Local parameter symbols in calling-convention order.
     pub(super) parameters: Vec<String>,
 
+    /// Scratch bindings used to preserve source evaluation before parameter placement.
+    pub(super) temporary_count: usize,
+
     /// Statements in observable execution order.
     pub(super) body: Vec<Statement>,
 }
@@ -95,6 +98,21 @@ pub(super) enum Expression {
     String(
         /// Unicode scalar sequence inherited from HIR.
         String,
+    ),
+
+    /// Assignment to one compiler-generated function-local scratch binding.
+    Set {
+        /// Collision-free scratch symbol declared at function entry.
+        name: String,
+
+        /// Value evaluated before the scratch binding changes.
+        value: Box<Expression>,
+    },
+
+    /// Parenthesized left-to-right expression sequence yielding its final value.
+    Sequence(
+        /// Nonempty expressions evaluated in stored order.
+        Vec<Expression>,
     ),
 
     /// Direct call to one generated function or permitted host primitive.
