@@ -149,6 +149,7 @@ jobs:
           test "$llvm_major" = "22"
           echo "LLVM_CONFIG_PATH=$llvm_prefix/bin/llvm-config" >> "$GITHUB_ENV"
           echo "MLIR_SYS_220_PREFIX=$llvm_prefix" >> "$GITHUB_ENV"
+          echo "TABLEGEN_220_PREFIX=$llvm_prefix" >> "$GITHUB_ENV"
         shell: "bash"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
