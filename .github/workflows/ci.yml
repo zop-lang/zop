@@ -17,6 +17,7 @@ jobs:
     name: Compiler and contracts
     runs-on: macos-14
     env:
+      LLVM_CONFIG_PATH: /opt/homebrew/opt/llvm/bin/llvm-config
       MLIR_SYS_LINK_SHARED: "0"
       MLIR_SYS_220_PREFIX: /opt/homebrew/opt/llvm
     steps:

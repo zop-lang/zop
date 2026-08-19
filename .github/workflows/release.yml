@@ -147,6 +147,7 @@ jobs:
           llvm_prefix="$(brew --prefix llvm)"
           llvm_major="$($llvm_prefix/bin/llvm-config --version | cut -d. -f1)"
           test "$llvm_major" = "22"
+          echo "LLVM_CONFIG_PATH=$llvm_prefix/bin/llvm-config" >> "$GITHUB_ENV"
           echo "MLIR_SYS_220_PREFIX=$llvm_prefix" >> "$GITHUB_ENV"
         shell: "bash"
       - name: Install dist
