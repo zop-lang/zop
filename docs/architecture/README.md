@@ -46,6 +46,7 @@ backend translates the same form to Cranelift intermediate representation
 | [Language](language.md) | Source-level behavior and open language decisions | Compiler representation |
 | [Numeric semantics](numerics.md) | Types, division, rounding, casts, nonfinite values, traps, and cross-target fidelity | Tensor shape rules |
 | [Tensor layouts](layouts.md) | CuTe Engine and Layout, axes, modes, broadcasting, views, ABI, tooling, and lowering | Tensor algorithms |
+| [Layout expressions](layout-expressions.md) | Affine and composed maps, internal offsets, analysis, atoms, and conformance | Tensor algorithms |
 | [Indexing and slicing](indexing.md) | Tensor queries, negative indices, slices, residual layouts, bounds, ownership, and lowering | Advanced tensor algorithms |
 | [SIMD and vectorization](simd.md) | Semantic vector operations, legality, schedules, MLIR Vector, CLIF, reports, and proof gates | Concurrency and GPU scheduling |
 | [Generics](generics.md) | Type parameters, constraints, inference, specialization, and coherence | Implementation schedule |
