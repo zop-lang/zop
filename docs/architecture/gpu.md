@@ -221,6 +221,15 @@ It rejects an invalid mapping instead of silently changing the schedule.
 See the [worked data and thread/value Layout compositions](layout-examples.md#thread-and-value-mapping)
 for exact offsets and resulting layouts.
 
+Hardware instructions enter scheduling through compiler-known matrix-multiply
+and copy atoms. Each atom records instruction shape, operand types, target
+features, and thread/value Layouts. Atoms are target data, not new kernel
+syntax. See the [layout-expression atom contract](layout-expressions.md#hardware-atoms).
+
+Eligible zero-offset maps may lower to binary matrices over GF(2) for
+equivalence and conversion analysis. Nonzero integer offsets remain outside
+that representation unless the compiler proves that carries cannot occur.
+
 A kernel parameter uses `known` only when its numerical value must change
 generated device code:
 
@@ -289,8 +298,8 @@ final device image is embedded in or shipped beside the host object.
 Zop should consume and co-develop NVIDIA's
 [CuTe IR dialect](https://github.com/NVIDIA/cutlass/pull/3426) upstream. The
 source `Layout` contract matches CuTe's algebra on every target, while PyCuTe
-supplies a target-independent executable reference. Zop must not drift into a
-second algebra that only approximately lowers to CuTe.
+and `tensor-layouts` supply independent executable references. Zop must not
+drift into a second algebra that only approximately lowers to CuTe.
 
 The current CuTe IR contribution covers layout algebra rather than the full
 copy, matrix-multiply, and tensor-compute stack. Zop GPU support therefore
@@ -306,6 +315,8 @@ The first complete proof must:
 - Compile `kn` device code to an NVIDIA GPU image.
 - Run on real GPU hardware.
 - Match the CPU reference result for every output element.
+- Prove the selected hardware atom covers every required logical operand
+  coordinate exactly as its pinned vendor oracle specifies.
 - Show every `Mem` request, transfer, launch, and synchronization in the trace.
 - Trigger one trapping kernel in an isolated context and prove every allocation
   in that context becomes inaccessible while a fresh context remains usable.
@@ -317,3 +328,5 @@ The first complete proof must:
 - [CUDA context invalidation](https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TYPES.html)
 - [CuTe IR contribution](https://github.com/NVIDIA/cutlass/pull/3426)
 - [PyCuTe](https://github.com/NVlabs/CuTe)
+- [`tensor-layouts` hardware atoms](https://github.com/jduprat/tensor-layouts/tree/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts)
+- [Linear Layouts](https://arxiv.org/abs/2505.23819)

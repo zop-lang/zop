@@ -259,7 +259,7 @@ elimination.
 | Type and ownership checker | Valid programs plus exact rejection spans |
 | Compile-time values | Binding-time checks, purity, caching, and ABI erasure |
 | Numeric semantics | Types, quotient modes, traps, conversions, precision profiles, and target parity |
-| Tensor layouts | Engine and Layout profiles, algebra laws, modes, views, dynamic leaves, ABI, and visualization |
+| Tensor layouts | Engine, affine and composed Layout profiles, algebra laws, views, dynamic leaves, ABI, and visualization |
 | Tensor indexing | Normalization, bounds, slices, ranks, origins, descriptors, zero-copy proof, and target parity |
 | SIMD | Scalar equivalence, legality, reason codes, tails, MLIR, CLIF, target instructions, and crossover |
 | Callables | Members, calls, captures, lifetimes, and dispatch |
@@ -311,12 +311,11 @@ Small tests isolate one rule. Larger programs prove the rules compose. The
 corpus grows from arithmetic and control flow into parsers, graph algorithms,
 renderers, systems utilities, tensor libraries, and model workloads.
 
-The tensor-layout corpus is derived from the Apache-licensed
-[PyCuTe reference implementation](https://github.com/NVlabs/CuTe). Reviewed
-fixtures record input layouts, algebra results, coordinate maps, and expected
-failures without making Python a build dependency. The reference interpreter,
-Cranelift path, and CuTe intermediate representation lowering must agree for
-every coordinate in each fixture.
+The tensor-layout corpus triangulates PyCuTe, official CUTLASS CuTe behavior,
+and the independent MIT-licensed
+[`tensor-layouts`](https://github.com/jduprat/tensor-layouts/tree/d9f51a435c02eb600a05f72508e681bd33dadee9).
+Reviewed fixtures remain checked-in data, not Python build dependencies.
+Agreement between two Python implementations cannot override CUTLASS CuTe.
 
 The [worked layout examples](layout-examples.md) record the first readable
 surface of that corpus.
