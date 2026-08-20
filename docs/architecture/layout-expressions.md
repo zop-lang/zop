@@ -157,5 +157,109 @@ This does not reintroduce a tensor `origin` field. The Engine displacement is
 external storage state. A composition offset is part of the Layout function.
 They are distinct facts with distinct algebraic positions.
 
-Sources: [CUTLASS swizzle slicing](https://github.com/NVIDIA/cutlass/blob/7107b05535f8977f5ecb9d01ee203205b1fd9bc4/include/cute/swizzle_layout.hpp)
+Sources for representation and slicing:
+[CUTLASS swizzle slicing](https://github.com/NVIDIA/cutlass/blob/7107b05535f8977f5ecb9d01ee203205b1fd9bc4/include/cute/swizzle_layout.hpp)
 and [`tensor-layouts` composed slicing](https://github.com/jduprat/tensor-layouts/blob/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts/layouts/algebra.py#L1121).
+
+## Query contracts
+
+<!-- markdownlint-disable MD013 -->
+
+| Query | Affine | Composed |
+| --- | --- | --- |
+| `.shape`, `.rank`, `.depth`, `.size` | Derived from `shape` | Derived from the inner domain |
+| `.stride` | Congruent stride tree | Illegal unless the expression first proves affine |
+| `.cosize` | CuTe codomain size | Profile-specific algebraic query, not addressed storage bounds |
+| `.injective` | Proven symbolically or exhaustively | Proven from the complete expression |
+| `.compact` | Proven from shape and stride | Proven pointwise or by a composition-specific rule |
+| storage bounds | Engine plus affine min/max | Engine plus the complete composed image |
+
+<!-- markdownlint-enable MD013 -->
+
+CuTe `cosize` is the size of a function's codomain, not necessarily the number
+of visited addresses. For a swizzled composed layout, upstream CuTe returns the
+`cosize` of the inner layout. It is not an exact minimum and maximum address
+calculation for an arbitrary outer map. A general composition whose profile
+does not define `cosize` rejects the query at compile time.
+
+Zop never uses `.cosize` alone as a storage-safety proof. The required sets are:
+
+```text
+logical_domain = coordinates(layout.shape)
+addressed = { engine.base + layout(c) | c in logical_domain }
+```
+
+Every addressed index must be nonnegative and smaller than the Engine's backing
+allocation. Static layouts may prove this symbolically or by exhaustive
+evaluation. Dynamic layouts carry the minimum proof or guard required by their
+profile.
+
+## Inverses and negative internal offsets
+
+Inverting an offset-bearing composed layout may move the outer map into the
+inner position and negate the offset. The result can be valid algebra while
+producing negative values for early coordinates.
+
+```text
+forward = Swizzle o {4} o Affine(32:1)
+inverse = Affine(32:1) o {-4} o Swizzle
+```
+
+The inverse exists to compose with the forward map, where the intermediate
+negative contribution cancels. It is not automatically a valid direct storage
+layout. Attaching an Engine requires the ordinary addressed-set proof.
+
+Operations whose mathematics is undefined for an inverse-form nonlinear
+layout fail explicitly. `complement`, `logical_divide`, and `logical_product`
+remain unavailable until a sound definition and an upstream oracle exist. The
+compiler never approximates them with the inner affine layout.
+
+## Equality and analysis
+
+Structural equality asks whether two layout-expression trees are identical.
+Functional equality asks whether they map every logical coordinate to the same
+result. Algebraic rewrites need the second property even when their structures
+differ.
+
+```text
+functionally_equal(left, right)
+    = left.size == right.size
+      and every i in [0, left.size) satisfies left(i) == right(i)
+```
+
+The compiler uses symbolic proofs when available and exhaustive evaluation for
+small static domains. `zop layout check` may expose functional equality,
+address image, injectivity, surjectivity, contiguous runs, gaps, and aliasing
+groups. These remain tooling and compiler facts rather than duplicate syntax.
+
+Bank-conflict and coalescing reports take their hardware geometry from the
+target profile. They never hardcode one vendor's warp size, bank width, bank
+count, issue-group size, or transaction segment size into `Layout`.
+
+## Derived algebra surface
+
+`tensor-layouts` exposes variants such as `tiled_divide`, `flat_divide`,
+`zipped_product`, `blocked_product`, `raked_product`, `group`, `sort`, `upcast`,
+and `downcast`. Zop does not make every helper a core primitive.
+
+Divide and product variants rearrange hierarchy around canonical logical
+operations. Grouping and sorting are layout-library transformations. Upcast and
+downcast are instances of byte-preserving `recast`. Maximum common layout and
+vector calculations belong to compiler passes.
+
+## Binary linear-layout analysis
+
+Swizzles and many thread/value maps are linear over the finite field GF(2),
+whose only values are zero and one and whose addition is exclusive-or. The
+compiler may lower that subset to a binary matrix:
+
+```text
+output_bits = matrix * coordinate_bits  over GF(2)
+```
+
+This is an analysis representation, not source syntax or tensor ABI. A nonzero
+composition offset is ordinarily integer addition with carries, not a GF(2)
+translation; conversion rejects it unless a stronger proof removes the carries.
+
+This provides a bridge to Triton-style linear layouts without replacing CuTe
+`Engine + Layout` as the source model.
