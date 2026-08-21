@@ -33,29 +33,57 @@ Compiler implementation cannot settle these choices silently. Each requires a
 focused contract update and conformance evidence before its owning milestone
 closes.
 
-## 0.1.0: bootstrap
+## 0.0.x: internal bootstrap checkpoints
+
+`0.0.x` identifies disposable Rust stage-0 checkpoints. These builds may prove
+compiler plumbing, but they are not supported language releases and cargo-dist
+does not publish them.
+
+The current checkpoint can parse and type-check the documented scalar subset,
+emit deterministic ECMAScript, lower `i64` host functions through verified
+MLIR, execute them with Cranelift JIT, and emit native objects. Its arithmetic
+and command surface remain explicitly nonconforming or incomplete where the
+architecture documents say so. CI may retain artifacts for compiler debugging;
+users must not infer a language capability promise from their version numbers.
+
+## 0.1.0: usable scalar language
 
 The binary support matrix for this milestone is `aarch64-apple-darwin` with
 Homebrew LLVM 22. Target breadth is earned at 0.5.0.
 
-- Parse and type-check the scalar host subset into typed HIR.
-- Verify MLIR and translate one restricted boundary to Cranelift.
-- Execute JIT code and emit linkable AOT objects.
+- Parse and type-check a documented scalar host language with functions,
+  direct calls, locals, `i64`, `bool`, unit, comparisons, conditionals, and
+  ordinary recursion into verified typed HIR.
+- Lower that complete subset through an explicit verifier-gated MLIR pass
+  pipeline and the restricted MLIR-to-Cranelift boundary.
+- Implement build-invariant trapping `i64` arithmetic and the documented
+  integer division and remainder semantics in the interpreter, JIT, and AOT
+  paths. No bootstrap wrapping or generic truncating operation may remain.
+- Ship a small reference interpreter for the same boundary and require value,
+  output, and failure-class parity with Cranelift JIT and AOT execution.
+- Provide minimal explicit `Io` standard output, including UTF-8 string and
+  scalar formatting, without introducing ambient process state.
+- Ship `zop run` for one source program and `zop build` for one runnable native
+  executable. Retain explicit `mlir`, object, and JavaScript artifact commands.
 - Emit deterministic ECMAScript for the documented scalar browser subset.
-- Reject every unsupported construct with a structured diagnostic.
+- Reject every unsupported construct with a structured, source-backed
+  diagnostic before it reaches a weaker stage or target.
+- Install the archive and shell installer into clean prefixes on the declared
+  host, then pass hello-world, arithmetic, conditional Fibonacci,
+  multi-function, recursion, and invalid-program smoke fixtures.
 
-This is the current Rust stage-0 scope.
+`0.1.0` is the first public binary release. A merge that improves compiler
+plumbing without satisfying every item above remains a `0.0.x` checkpoint.
 
 ## 0.2.0: language core
 
-- Implement control flow, blocks, `type` products and sums, tuples, closures,
-  typed failures, modules, defaults, and named calls.
+- Complete blocks, `type` products and sums, tuples, closures, typed failures,
+  modules, defaults, and named calls.
 - Index declaration names, resolve signatures, and check bodies as separate
   phases with forward-reference, interface-hash, and cycle tests.
 - Complete local bidirectional inference and exhaustive pattern checking.
-- Implement build-invariant trapping integer arithmetic, compound update
-  assignments, fallible numeric members, and explicit wrapping and saturating
-  operations across the interpreter and backends.
+- Implement compound update assignments, fallible numeric members, and explicit
+  wrapping and saturating operations across the interpreter and backends.
 - Implement fractional `/`, integer `//` and `%`, every quotient mode, explicit
   numeric casts, bundled `math.min` and `math.max`, and strict cross-target
   floating-point profiles.
@@ -69,7 +97,6 @@ This is the current Rust stage-0 scope.
   destructuring, explicit `zip` strictness, and Go-like table subtests.
 - Ship the canonical formatter plus lexical highlighting fixtures when the
   source grammar freezes.
-- Establish a reference interpreter for the shared scalar boundary.
 - Freeze the source grammar represented by the conformance corpus.
 
 ## 0.3.0: tensor CPU
@@ -138,8 +165,8 @@ This is the current Rust stage-0 scope.
 
 ## 0.6.0: complete toolchain
 
-- Ship `zop init`, build, run, test, format, doc, package, and workspace
-  commands from one locked dependency graph.
+- Ship `zop init`, test, format, doc, package, and workspace commands from one
+  locked dependency graph, and complete the build and run workspace surfaces.
 - Make builds hermetic after resolution and make cache identity explainable.
 - Ship the lean `core` and `std` boundary, structured documentation comments,
   checked examples, generated API reference, and configured narrative books.

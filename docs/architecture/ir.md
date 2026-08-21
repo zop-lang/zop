@@ -25,15 +25,19 @@ code.
 
 ## Implemented bootstrap
 
-The current path emits an in-memory MLIR module with `func` and `arith`
-operations for `i64` host functions. MLIR verifies the module. A separate
-translator walks that verified module and accepts only constants, integer
-arithmetic, direct calls, and returns. It produces a small scalar static
-single-assignment form, where each value is defined once. The just-in-time
-(JIT) and ahead-of-time (AOT) Cranelift modules share that form.
+The current first-class MLIR layer emits an in-memory module with `func` and
+`arith` operations for `i64` host functions. It verifies the emitted module,
+runs a named scalar pipeline of canonicalization followed by
+common-subexpression elimination, enables verification within the pass manager,
+then verifies the transformed module again. A separate backend translator walks
+that result and accepts only constants, integer arithmetic, direct calls, and
+returns. It produces a small scalar static single-assignment form, where each
+value is defined once. The just-in-time (JIT) and ahead-of-time (AOT) Cranelift
+modules share that form.
 
 This path does not parse textual MLIR and does not bypass MLIR with a second HIR
-lowering. It has no tensor passes, bufferization, control-flow lowering, or
+lowering. Text output is an observation surface, not a compiler interchange
+format. It has no tensor passes, bufferization, control-flow lowering, or
 reference interpreter yet. Its generic same-type divide and remainder nodes
 represent temporary bootstrap behavior, not the target source contract.
 
@@ -240,10 +244,13 @@ reference interpreter will execute the same form with a trampoline.
 
 ## Verification
 
-The bootstrap verifies MLIR after emission. Its translator rejects every
-unlisted operation before Cranelift construction. Cranelift validates the
-translated function before machine-code emission. The production pipeline will
-add a second MLIR verification boundary after tensor and control-flow passes.
+The bootstrap verifies MLIR after emission, during each registered scalar pass,
+and after the scalar pipeline completes. Its translator rejects every unlisted
+operation before Cranelift construction. Cranelift validates the translated
+function before machine-code emission. Tensor, vector, bufferization, and
+control-flow pipelines must preserve the same verifier-after-each-pass rule as
+they are introduced; reaching the final CLIF-ready verifier is not sufficient
+evidence for an invalid intermediate step.
 
 Textual IR exists for diagnostics and golden tests. Compiler stages exchange
 in-memory IR and do not depend on reparsing debug output.
