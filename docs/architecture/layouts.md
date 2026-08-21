@@ -15,6 +15,8 @@ failure contracts around those two parts.
 The [worked examples](layout-examples.md) show verified offsets, zero-copy
 views, algebra results, thread/value mappings, contraction, copy planning,
 lowering traces, and dynamic descriptors beside their PyCuTe references.
+The [layout-expression contract](layout-expressions.md) defines exact affine
+and composed representations, nonlinear slicing, analysis, and target atoms.
 
 ## Core model
 
