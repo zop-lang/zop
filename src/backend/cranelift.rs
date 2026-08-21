@@ -19,13 +19,11 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, FuncOrDataId, Linkage, Module as _, default_libcall_names};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 
-use crate::hir;
+use crate::{hir, mlir::with_verified_module};
 
 use super::{
     error::{BackendResult, backend_error},
-    ffi,
-    mlir::with_module,
-    scalar,
+    ffi, scalar,
     translate::translate,
 };
 
@@ -87,7 +85,7 @@ impl JitArtifact {
 /// Returns a lowering or backend diagnostic when MLIR translation, target
 /// construction, function definition, or finalization fails.
 pub fn compile_jit(hir: &hir::Module) -> BackendResult<JitArtifact> {
-    with_module(hir, |module| emit_jit(&translate(module)?))
+    with_verified_module(hir, |module| emit_jit(&translate(module)?))
 }
 
 /// Compile typed Zop code into a native object for the current host.
@@ -97,7 +95,7 @@ pub fn compile_jit(hir: &hir::Module) -> BackendResult<JitArtifact> {
 /// Returns a lowering or backend diagnostic when the host target, translation,
 /// function definition, or object emission fails.
 pub fn compile_object(hir: &hir::Module) -> BackendResult<Vec<u8>> {
-    with_module(hir, |module| emit_object(&translate(module)?))
+    with_verified_module(hir, |module| emit_object(&translate(module)?))
 }
 
 fn emit_jit(input: &scalar::Module) -> BackendResult<JitArtifact> {

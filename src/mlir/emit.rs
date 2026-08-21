@@ -23,9 +23,12 @@ use melior::{
     utility::register_all_dialects,
 };
 
-use crate::hir;
+use crate::{
+    backend::error::{BackendResult, lowering_error},
+    hir,
+};
 
-use super::error::{BackendResult, lowering_error};
+use super::pipeline;
 
 /// Lower one typed module to verified textual MLIR.
 ///
@@ -34,11 +37,11 @@ use super::error::{BackendResult, lowering_error};
 /// Returns a lowering diagnostic when the module contains a type, function
 /// kind, expression, or invariant outside the implemented native scalar slice.
 pub fn mlir_text(hir: &hir::Module) -> BackendResult<String> {
-    with_module(hir, |module| Ok(module.as_operation().to_string()))
+    with_verified_module(hir, |module| Ok(module.as_operation().to_string()))
 }
 
-/// Build and verify one in-memory MLIR module before invoking a consumer.
-pub(super) fn with_module<T>(
+/// Emit and transform one verified in-memory MLIR module before invoking a consumer.
+pub(crate) fn with_verified_module<T>(
     hir: &hir::Module,
     compile: impl for<'context> FnOnce(&Module<'context>) -> BackendResult<T>,
 ) -> BackendResult<T> {
@@ -49,12 +52,16 @@ pub(super) fn with_module<T>(
     context.load_all_available_dialects();
 
     let location = Location::unknown(&context);
-    let module = Module::new(location);
+    let mut module = Module::new(location);
     for function in &hir.functions {
         module.body().append_operation(lower_function(&context, hir, function, location)?);
     }
     if !module.as_operation().verify() {
         return Err(lowering_error("M0002", "generated MLIR failed verification"));
+    }
+    pipeline::run_scalar(&context, &mut module)?;
+    if !module.as_operation().verify() {
+        return Err(lowering_error("M0002", "transformed MLIR failed verification"));
     }
     compile(&module)
 }

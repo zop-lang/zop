@@ -9,7 +9,7 @@
 
 use std::{env, fs, process::ExitCode};
 
-use zop::{backend, diagnostic::Diagnostics, frontend::analyze};
+use zop::{backend, diagnostic::Diagnostics, frontend::analyze, mlir};
 
 /// Explicit artifact selected by the command line.
 enum Command {
@@ -82,7 +82,7 @@ fn run(command: Command) -> Result<(), String> {
                 .map_err(|error| format!("failed to write {output}: {error}"))?;
         }
         Command::Mlir { .. } => {
-            println!("{}", backend::mlir_text(&hir).map_err(format_diagnostics)?);
+            println!("{}", mlir::mlir_text(&hir).map_err(format_diagnostics)?);
         }
         Command::Object { output, .. } => {
             let object = backend::compile_object(&hir).map_err(format_diagnostics)?;
