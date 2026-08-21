@@ -6,8 +6,9 @@ Passing one backend or one happy-path program is not enough.
 ## Current suite
 
 The bootstrap tests lexer layout and rejection rules, parser structure and
-error recovery, scalar type checking, verified Multi-Level Intermediate
-Representation (MLIR) emission, contextual numeric literals, direct calls,
+error recovery, scalar type checking, affine and composed Layout evaluation
+and slicing, verified Multi-Level Intermediate Representation (MLIR) emission,
+contextual numeric literals, direct calls,
 forward signature resolution, direct and mutual recursive signature cycles,
 local assignments, typed just-in-time (JIT) invocation, and native object
 emission. It also covers deterministic ECMAScript emission, exact `i32`

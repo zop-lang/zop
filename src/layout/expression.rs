@@ -27,6 +27,27 @@ pub enum LayoutError {
     /// Affine coordinate evaluation exceeded the signed 64-bit index.
     AffineEvaluationOverflow,
 
+    /// A slice selector list does not match the layout rank.
+    SliceRankMismatch {
+        /// Rank required by the layout.
+        expected: usize,
+        /// Number of supplied selectors.
+        actual: usize,
+    },
+
+    /// A fixed slice coordinate lies outside its logical axis.
+    FixedCoordinateOutOfBounds {
+        /// Zero-based flat axis containing the invalid coordinate.
+        axis: usize,
+        /// Normalized coordinate supplied for the axis.
+        coordinate: i64,
+        /// Logical extent required by the axis.
+        extent: usize,
+    },
+
+    /// Affine slice displacement exceeded the signed 64-bit index.
+    SliceOffsetOverflow,
+
     /// Swizzle bit fields do not fit in a nonnegative signed index.
     InvalidSwizzle {
         /// Number of bits requested in each field.
@@ -58,6 +79,16 @@ impl Display for LayoutError {
             }
             Self::AffineEvaluationOverflow => {
                 formatter.write_str("affine layout evaluation overflowed i64")
+            }
+            Self::SliceRankMismatch { expected, actual } => {
+                write!(formatter, "layout expects {expected} slice selectors, got {actual}")
+            }
+            Self::FixedCoordinateOutOfBounds { axis, coordinate, extent } => write!(
+                formatter,
+                "coordinate {coordinate} is outside extent {extent} on axis {axis}"
+            ),
+            Self::SliceOffsetOverflow => {
+                formatter.write_str("affine slice displacement overflowed i64")
             }
             Self::InvalidSwizzle { bits, base, shift } => write!(
                 formatter,
@@ -126,6 +157,45 @@ impl AffineLayout {
                 value.checked_mul(*stride).ok_or(LayoutError::AffineEvaluationOverflow)?;
             offset.checked_add(contribution).ok_or(LayoutError::AffineEvaluationOverflow)
         })
+    }
+
+    fn slice(&self, coordinate: &[SliceCoordinate]) -> Result<SliceResult, LayoutError> {
+        if coordinate.len() != self.shape.len() {
+            return Err(LayoutError::SliceRankMismatch {
+                expected: self.shape.len(),
+                actual: coordinate.len(),
+            });
+        }
+        let mut shape = Vec::new();
+        let mut stride = Vec::new();
+        let mut engine_delta = 0_i64;
+        for (axis, ((selector, extent), axis_stride)) in
+            coordinate.iter().zip(&self.shape).zip(&self.stride).enumerate()
+        {
+            match selector {
+                SliceCoordinate::Free => {
+                    shape.push(*extent);
+                    stride.push(*axis_stride);
+                }
+                SliceCoordinate::Fixed(value) => {
+                    if *value < 0 || usize::try_from(*value).map_or(true, |value| value >= *extent)
+                    {
+                        return Err(LayoutError::FixedCoordinateOutOfBounds {
+                            axis,
+                            coordinate: *value,
+                            extent: *extent,
+                        });
+                    }
+                    let contribution =
+                        value.checked_mul(*axis_stride).ok_or(LayoutError::SliceOffsetOverflow)?;
+                    engine_delta = engine_delta
+                        .checked_add(contribution)
+                        .ok_or(LayoutError::SliceOffsetOverflow)?;
+                }
+            }
+        }
+        let layout = Self::new(shape, stride)?.into();
+        Ok(SliceResult { layout, engine_delta })
     }
 }
 
@@ -234,10 +304,50 @@ impl LayoutExpr {
             }
         }
     }
+
+    /// Fix selected coordinates and retain free coordinates in a residual map.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed layout error for rank mismatch, out-of-bounds fixed
+    /// coordinates, or arithmetic overflow.
+    pub fn slice(&self, coordinate: &[SliceCoordinate]) -> Result<SliceResult, LayoutError> {
+        match self {
+            Self::Affine(layout) => layout.slice(coordinate),
+            Self::Compose { outer, offset, inner } => {
+                let sliced = inner.slice(coordinate)?;
+                let offset = offset
+                    .checked_add(sliced.engine_delta)
+                    .ok_or(LayoutError::CompositionOffsetOverflow)?;
+                let layout = Self::compose(*outer, offset, sliced.layout);
+                Ok(SliceResult { layout, engine_delta: 0 })
+            }
+        }
+    }
 }
 
 impl From<AffineLayout> for LayoutExpr {
     fn from(layout: AffineLayout) -> Self {
         Self::Affine(layout)
     }
+}
+
+/// One coordinate selector used by layout slicing after index normalization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SliceCoordinate {
+    /// Fix this axis to one normalized coordinate.
+    Fixed(i64),
+
+    /// Retain this complete axis in the residual layout.
+    Free,
+}
+
+/// Residual map and external Engine displacement produced by one slice.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SliceResult {
+    /// Layout over every retained coordinate.
+    pub layout: LayoutExpr,
+
+    /// Signed displacement applied outside the residual layout.
+    pub engine_delta: i64,
 }

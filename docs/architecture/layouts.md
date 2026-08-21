@@ -7,8 +7,9 @@ index offsets and dereferences. Zop adds ownership, bounds, placement, and
 failure contracts around those two parts.
 
 > **Status:** This page defines target language, tooling, and lowering
-> contracts. Tensor values and `Layout` are not implemented in the Rust
-> bootstrap. Bracket syntax and view derivation follow the target
+> contracts. The Rust bootstrap implements flat affine/composed evaluation and
+> slicing, but not tensor values, hierarchy, HIR, storage, or lowering. Bracket
+> syntax and view derivation follow the target
 > [indexing contract](indexing.md), including endpoint clipping and explicit
 > strict slicing.
 

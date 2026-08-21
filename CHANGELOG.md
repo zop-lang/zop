@@ -10,6 +10,7 @@ declared stable; before 1.0, each release documents its compatibility boundary.
   project-owned work under Apache-2.0.
 - Bootstrap the Rust stage-0 frontend, typed HIR, MLIR verification, Cranelift
   execution and object emission, and deterministic ECMAScript subset.
+- Add executable affine and composed Layout evaluation and slicing semantics.
 - Establish the canonical language, tensor-layout, target, tooling,
   self-hosting, and release contracts.
 - Preserve source-order named calls through HIR and native and JavaScript

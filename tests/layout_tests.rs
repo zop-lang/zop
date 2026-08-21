@@ -1,9 +1,39 @@
 // Copyright (c) 2024 Windsor Nguyen.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Layout-expression evaluation invariants.
+//! Layout-expression evaluation and slicing invariants.
 
-use zop::layout::{AffineLayout, LayoutError, LayoutExpr, Swizzle, SwizzleSpec};
+use zop::layout::{AffineLayout, LayoutError, LayoutExpr, SliceCoordinate, Swizzle, SwizzleSpec};
+
+#[test]
+fn invariant_slicing_preserves_every_layout_expression_address() {
+    let affine = AffineLayout::new(vec![4, 4], vec![4, 1]).expect("layout should be valid");
+    let affine = LayoutExpr::from(affine);
+    let swizzled = LayoutExpr::compose(
+        Swizzle::new(SwizzleSpec { bits: 2, base: 0, shift: 2 }).expect("swizzle should be valid"),
+        0,
+        affine.clone(),
+    );
+    let nested = LayoutExpr::compose(
+        Swizzle::new(SwizzleSpec { bits: 1, base: 0, shift: 1 })
+            .expect("outer swizzle should be valid"),
+        0,
+        swizzled.clone(),
+    );
+
+    for parent in [affine, swizzled, nested] {
+        let sliced = parent
+            .slice(&[SliceCoordinate::Fixed(1), SliceCoordinate::Free])
+            .expect("slice should be valid");
+
+        for column in 0..4_i64 {
+            let parent_address = parent.evaluate(&[1, column]).expect("parent should evaluate");
+            let residual = sliced.layout.evaluate(&[column]).expect("residual should evaluate");
+
+            assert_eq!(sliced.engine_delta + residual, parent_address);
+        }
+    }
+}
 
 #[test]
 fn affine_layout_evaluates_its_shape_stride_map() {
@@ -44,5 +74,20 @@ fn invariant_invalid_compositions_never_produce_an_index() {
     assert!(matches!(
         Swizzle::new(SwizzleSpec { bits: 4, base: 60, shift: 4 }),
         Err(LayoutError::InvalidSwizzle { .. })
+    ));
+}
+
+#[test]
+fn invariant_invalid_slices_never_produce_a_residual_layout() {
+    let affine = AffineLayout::new(vec![3], vec![i64::MAX]).expect("layout should be valid");
+    let affine = LayoutExpr::from(affine);
+
+    assert!(matches!(
+        affine.slice(&[SliceCoordinate::Fixed(3)]),
+        Err(LayoutError::FixedCoordinateOutOfBounds { .. })
+    ));
+    assert!(matches!(
+        affine.slice(&[SliceCoordinate::Fixed(2)]),
+        Err(LayoutError::SliceOffsetOverflow)
     ));
 }

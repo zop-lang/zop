@@ -52,8 +52,9 @@ earned capability gate rather than a version implied by merging code.
 
 The current Rust bootstrap implements indentation-aware lexing, parsing,
 scalar name and type checking, typed high-level intermediate representation,
-deterministic ECMAScript modules, verified MLIR, and Cranelift just-in-time and
-object code generation. The JavaScript slice accepts exact `i32`, `f64`,
+flat affine and composed Layout evaluation and slicing, deterministic
+ECMAScript modules, verified MLIR, and Cranelift just-in-time and object code
+generation. The JavaScript slice accepts exact `i32`, `f64`,
 `bool`, string, and unit representations. The native executable slice accepts
 only host `fn` code over `i64` while the contracts for tensors, ownership,
 effects, errors, and GPU kernels mature.
