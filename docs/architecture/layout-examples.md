@@ -108,10 +108,11 @@ test "rows and columns are zero-copy views"
     expect equal(corner[1, 1], 8)
 ```
 
-All three results borrow `matrix`'s Engine and record `matrix` as their Zop
-ownership origin. Slicing advances the Engine and retains a residual Layout. No
-test needs an allocation expectation because basic slice lowering is invalid if
-it emits an allocation or element copy at all.
+All three affine results borrow `matrix`'s Engine and record `matrix` as their
+Zop ownership origin. Their fixed-coordinate contributions advance the Engine,
+and their free coordinates remain in residual affine Layouts. No test needs an
+allocation expectation because basic slice lowering is invalid if it emits an
+allocation or element copy at all.
 
 Stepping multiplies the selected axis's source stride:
 
@@ -289,8 +290,8 @@ test "layout evaluation does not imply memory access"
 ```
 
 The same coordinate is not a legal tensor index because `10` is outside the
-logical extent `4`. Storage capacity is checked separately through the layout's
-codomain size:
+logical extent `4`. For this finite nonnegative affine layout, storage capacity
+is checked separately through the layout's codomain size:
 
 ```zop
 test "layout codomain determines required storage"
@@ -311,7 +312,7 @@ References:
 
 ## Zero-copy rows and columns
 
-Slicing advances the Engine and retains the residual Layout:
+These affine slices advance the Engine and retain a residual Layout:
 
 ```zop
 fn inspect matrix: f32[4, 8]
@@ -332,6 +333,53 @@ References:
 
 - [PyCuTe layout slicing](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/03_layout.md#slicing-a-layout)
 - [PyCuTe tensor slicing](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/05_tensor.md#reading-and-writing)
+
+## Slicing through nonlinear composition
+
+A fixed coordinate cannot always become an Engine displacement. Consider
+`S(x) = x xor (x >> 2)` composed outside a row-major `4 x 4` layout:
+
+```text
+parent = Compose(outer=S, offset=0,
+                 inner=Affine(shape=(4, 4), stride=(4, 1)))
+parent(row, column) = S(row * 4 + column)
+```
+
+Fixing row `1` contributes `4` before `S`. The correct residual keeps that
+contribution inside the composition:
+
+```text
+residual = Compose(outer=S, offset=4,
+                   inner=Affine(shape=4, stride=1))
+engine_delta = 0
+```
+
+Advancing the Engine would put the contribution after `S` and change the
+address:
+
+```text
+correct(0) = S(4) = 5
+wrong(0)   = 4 + S(0) = 4
+```
+
+Here `free` marks a coordinate that remains in the residual domain. The
+invariant test compares every residual coordinate with its parent coordinate:
+
+```text
+residual, engine_delta = slice_and_offset((1, free), parent)
+
+for column in range(4):
+    assert engine_delta + residual(column) == parent(1, column)
+```
+
+Some restricted swizzled slices are provably affine. The compiler may decay
+the residual to `Shape:Stride` and externalize a displacement only after
+proving the same pointwise identity.
+
+References:
+
+- [CUTLASS swizzle slicing](https://github.com/NVIDIA/cutlass/blob/7107b05535f8977f5ecb9d01ee203205b1fd9bc4/include/cute/swizzle_layout.hpp)
+- [`tensor-layouts` composed slicing](https://github.com/jduprat/tensor-layouts/blob/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts/layouts/algebra.py#L1121)
 
 ## Coalescing
 
