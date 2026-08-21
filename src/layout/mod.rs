@@ -8,4 +8,6 @@
 
 mod expression;
 
-pub use expression::{AffineLayout, LayoutError, LayoutExpr, Swizzle, SwizzleSpec};
+pub use expression::{
+    AffineLayout, LayoutError, LayoutExpr, SliceCoordinate, SliceResult, Swizzle, SwizzleSpec,
+};

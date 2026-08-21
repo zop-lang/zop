@@ -8,8 +8,11 @@ ordinary integer addition.
 
 > **Status:** This page corrects and extends the target tensor contract. Neither
 > layout form is complete in the Rust bootstrap. Flat affine and nested
-> swizzle-composed evaluation are implemented; slicing, hierarchy, tensors,
-> HIR, storage, and lowering remain contracts.
+> swizzle-composed evaluation and fixed/free slicing are implemented. Hierarchy,
+> tensors, HIR, storage, analysis, atoms, and lowering remain contracts.
+
+The executable invariant compares `engine_delta + residual(free)` with
+`parent(fixed, free)` for affine, composed, and nested-composed layouts.
 
 ## Representation
 
