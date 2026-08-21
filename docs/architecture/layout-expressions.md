@@ -7,8 +7,9 @@ required for swizzles and any other coordinate map that is not linear over
 ordinary integer addition.
 
 > **Status:** This page corrects and extends the target tensor contract. Neither
-> layout form is implemented in the Rust bootstrap. The first tensor slice must
-> implement these forms before accepting swizzled views or general composition.
+> layout form is complete in the Rust bootstrap. Flat affine construction and
+> evaluation are implemented; composition, slicing, hierarchy, tensors, HIR,
+> storage, and lowering remain contracts.
 
 ## Representation
 
