@@ -7,9 +7,9 @@ required for swizzles and any other coordinate map that is not linear over
 ordinary integer addition.
 
 > **Status:** This page corrects and extends the target tensor contract. Neither
-> layout form is complete in the Rust bootstrap. Flat affine construction and
-> evaluation are implemented; composition, slicing, hierarchy, tensors, HIR,
-> storage, and lowering remain contracts.
+> layout form is complete in the Rust bootstrap. Flat affine and nested
+> swizzle-composed evaluation are implemented; slicing, hierarchy, tensors,
+> HIR, storage, and lowering remain contracts.
 
 ## Representation
 

@@ -26,6 +26,25 @@ pub enum LayoutError {
 
     /// Affine coordinate evaluation exceeded the signed 64-bit index.
     AffineEvaluationOverflow,
+
+    /// Swizzle bit fields do not fit in a nonnegative signed index.
+    InvalidSwizzle {
+        /// Number of bits requested in each field.
+        bits: u32,
+        /// Number of low-order bits below the destination field.
+        base: u32,
+        /// Signed distance between the interacting fields.
+        shift: i32,
+    },
+
+    /// A swizzle received a negative intermediate index.
+    NegativeSwizzleInput {
+        /// Negative value that cannot enter a CuTe swizzle.
+        input: i64,
+    },
+
+    /// Internal composition offset exceeded the signed 64-bit index.
+    CompositionOffsetOverflow,
 }
 
 impl Display for LayoutError {
@@ -39,6 +58,16 @@ impl Display for LayoutError {
             }
             Self::AffineEvaluationOverflow => {
                 formatter.write_str("affine layout evaluation overflowed i64")
+            }
+            Self::InvalidSwizzle { bits, base, shift } => write!(
+                formatter,
+                "swizzle bits={bits}, base={base}, shift={shift} exceeds nonnegative i64"
+            ),
+            Self::NegativeSwizzleInput { input } => {
+                write!(formatter, "swizzle input {input} must be nonnegative")
+            }
+            Self::CompositionOffsetOverflow => {
+                formatter.write_str("layout composition offset overflowed i64")
             }
         }
     }
@@ -100,14 +129,95 @@ impl AffineLayout {
     }
 }
 
+/// CuTe-style exclusive-or permutation over two fixed-width bit fields.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Swizzle {
+    /// Number of bits in each interacting field.
+    bits: u32,
+
+    /// Number of low-order bits left unchanged.
+    base: u32,
+
+    /// Signed distance from the destination field to the source field.
+    shift: i32,
+}
+
+/// Named CuTe bit-field parameters that cannot be transposed at a call site.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SwizzleSpec {
+    /// Number of bits in each interacting field.
+    pub bits: u32,
+
+    /// Number of low-order bits left unchanged.
+    pub base: u32,
+
+    /// Signed distance from the destination field to the source field.
+    pub shift: i32,
+}
+
+impl Swizzle {
+    /// Construct a swizzle whose fields fit in a nonnegative signed index.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LayoutError::InvalidSwizzle`] when either field extends past
+    /// bit 62.
+    pub fn new(spec: SwizzleSpec) -> Result<Self, LayoutError> {
+        let SwizzleSpec { bits, base, shift } = spec;
+        let highest = base
+            .checked_add(shift.unsigned_abs())
+            .and_then(|position| position.checked_add(bits))
+            .ok_or(LayoutError::InvalidSwizzle { bits, base, shift })?;
+        if highest > i64::BITS - 1 {
+            return Err(LayoutError::InvalidSwizzle { bits, base, shift });
+        }
+        Ok(Self { bits, base, shift })
+    }
+
+    fn apply(self, index: i64) -> Result<i64, LayoutError> {
+        let mut index =
+            u64::try_from(index).map_err(|_| LayoutError::NegativeSwizzleInput { input: index })?;
+        let field = if self.bits == 0 { 0 } else { (1_u64 << self.bits) - 1 };
+        let mask = field << self.base;
+        if self.shift >= 0 {
+            index ^= (index >> self.shift.unsigned_abs()) & mask;
+        } else {
+            index ^= (index & mask) << self.shift.unsigned_abs();
+        }
+        i64::try_from(index).map_err(|_| LayoutError::InvalidSwizzle {
+            bits: self.bits,
+            base: self.base,
+            shift: self.shift,
+        })
+    }
+}
+
 /// Exact layout function implemented by the Rust bootstrap reference model.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LayoutExpr {
     /// Integer inner-product coordinate map.
     Affine(AffineLayout),
+
+    /// Swizzle applied after an internal offset and inner layout evaluation.
+    Compose {
+        /// Nonlinear outer coordinate map.
+        outer: Swizzle,
+
+        /// Signed contribution applied before the outer map.
+        offset: i64,
+
+        /// Layout that owns the logical coordinate domain.
+        inner: Box<LayoutExpr>,
+    },
 }
 
 impl LayoutExpr {
+    /// Compose one swizzle outside an internal offset and inner layout.
+    #[must_use]
+    pub fn compose(outer: Swizzle, offset: i64, inner: Self) -> Self {
+        Self::Compose { outer, offset, inner: Box::new(inner) }
+    }
+
     /// Evaluate one natural flat coordinate without dereferencing storage.
     ///
     /// # Errors
@@ -116,6 +226,12 @@ impl LayoutExpr {
     pub fn evaluate(&self, coordinate: &[i64]) -> Result<i64, LayoutError> {
         match self {
             Self::Affine(layout) => layout.evaluate(coordinate),
+            Self::Compose { outer, offset, inner } => {
+                let inner = inner.evaluate(coordinate)?;
+                let input =
+                    offset.checked_add(inner).ok_or(LayoutError::CompositionOffsetOverflow)?;
+                outer.apply(input)
+            }
         }
     }
 }
