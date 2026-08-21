@@ -4,8 +4,8 @@
 //! Rust bootstrap compiler for the Zop programming language.
 //!
 //! The crate exposes phase-specific lexer, syntax, frontend, intermediate
-//! representation, and backend modules. Unsupported language features return
-//! structured diagnostics before entering a weaker compiler path.
+//! representation, layout-reference, and backend modules. Unsupported language
+//! features return structured diagnostics before entering a weaker compiler path.
 
 #![warn(unsafe_code)]
 
@@ -13,6 +13,7 @@ pub mod backend;
 pub mod diagnostic;
 pub mod frontend;
 pub mod hir;
+pub mod layout;
 pub mod lexer;
 pub mod source;
 pub mod syntax;
