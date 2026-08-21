@@ -20,14 +20,16 @@ and composed representations, nonlinear slicing, analysis, and target atoms.
 
 ## Core model
 
-A layout contains a `Shape` and a congruent `Stride`. Congruent means both have
-the same nested structure. Evaluating a coordinate recursively converts it to
-the shape's natural coordinate (the coordinate with the same hierarchy as the
-shape) and takes its inner product with the stride:
+An affine layout contains a `Shape` and a congruent `Stride`. Congruent means
+both have the same nested structure. Evaluating a coordinate recursively
+converts it to the shape's natural coordinate, then takes its inner product
+with the stride. A composed layout instead preserves an outer map, an offset,
+and an inner layout when the map cannot be represented by one stride tree:
 
 ```text
-Layout = Shape : Stride
+AffineLayout = Shape : Stride
 layout(coordinate) = index or coordinate
+Compose(outer, offset, inner)(coordinate) = outer(offset + inner(coordinate))
 Tensor = Engine composed with Layout
 tensor[coordinate] = engine[layout(coordinate)]
 ```
@@ -47,7 +49,9 @@ Nested shapes preserve modes introduced by tiling, partitioning, and
 vectorization. Integer strides produce integral offsets. Basis strides produce
 structured coordinates and support identity tensors, predication, and by-mode
 composition. A composition may add an offset, another layout, or a swizzle (a
-bitwise permutation used to change memory-bank mapping).
+bitwise permutation used to change memory-bank mapping). The offset remains
+inside the composition when moving it through the outer map would change
+addresses.
 Ordinary row-major, column-major, transposed, padded, broadcast, and strided
 views are instances of this one model.
 
@@ -175,19 +179,21 @@ test "explicit layouts map coordinates"
     expect equal(blocked.shape, ((4, 2), (2, 4)))
 ```
 
-A layout exposes `.shape`, `.stride`, `.rank`, `.depth`, `.size`, `.coshape`,
-`.cosize`, `.compact`, and `.injective`. `coshape` bounds a possibly structured
-codomain. `cosize` is available when that codomain has a finite nonnegative
-scalar bound. Signed-stride views retain an advanced Engine and reachable-bounds
-proof instead of redefining `cosize`. The layout's canonical text form is
-`Shape:Stride`.
+A layout exposes `.shape`, `.rank`, `.depth`, `.size`, `.compact`, and
+`.injective`. An affine layout also exposes its congruent `.stride` tree. A
+composed layout has no universal stride, so requesting `.stride` without an
+affine proof is a compile error. `coshape` and `cosize` follow the concrete
+layout-expression profile and are never substitutes for exact addressed
+storage bounds. Affine forms print `Shape:Stride`; composed forms print
+`outer o {offset} o inner`.
 Symbolic extents such as `m`, `n`, and `k` remain attached in high-level
 intermediate representation (HIR) for diagnostics and visualization even when
 the canonical form uses positions.
 
-Shape, stride, and composition structure are static. Individual leaves may be
-static integers, symbolic extents, or runtime integers. A fully static
-layout occupies no runtime field. Lowering materializes only dynamic leaves.
+Shape, stride, outer map, internal offset, and composition structure form a
+static profile. Individual leaves may be static integers, symbolic extents, or
+runtime integers. A fully static layout occupies no runtime field. Lowering
+materializes only distinct dynamic leaves.
 
 `basis(mode)` constructs a unit stride in one codomain mode. Scaling and
 combining basis strides produces coordinate-valued layouts. This is Zop's
@@ -217,6 +223,10 @@ as a `Layout` method and through `core.layout`:
 - `right_inverse`, `left_inverse`, and `nullspace` analyze mappings.
 - `recast` changes element granularity without changing addressed bytes.
 
+Each operation states the layout-expression profiles for which its mathematics
+is defined. Unsupported profile and operation pairs fail explicitly; they never
+delegate to an inner affine layout and silently lose a nonlinear map.
+
 The compiler may evaluate any operation during compilation when its arguments
 are static. The same operation remains callable at runtime when dynamic leaves
 make that meaningful.
@@ -240,15 +250,15 @@ different algebra.
 
 ## Views and mutation
 
-A view borrows the source Engine while transforming its Layout. A slice
-partially evaluates the source Layout, advances the Engine by the resulting
-offset, and retains the residual Layout. This is CUTLASS CuTe's exact operation:
-the new Engine points at the sliced tensor's logical coordinate zero. Transpose,
-grouping, ungrouping, and tiling transform Layout without copying data.
+A view borrows the source Engine while transforming its Layout. A slice returns
+a residual layout plus an external Engine displacement and proves that their
+sum matches every parent address. Affine slicing normally advances the Engine.
+Slicing through a nonlinear composition may instead keep the fixed contribution
+in the Layout's internal offset. Other layout transforms remain zero-copy.
 
-The Engine advance is not a third tensor field called an origin. Borrow origin
-is a separate Zop ownership fact identifying which owner keeps the Engine valid;
-it is not part of CuTe address calculation.
+The Engine displacement is not a third tensor field called an origin. Borrow
+origin is separate ownership state. A composed Layout's internal offset is
+coordinate algebra, not ownership metadata or an external displacement.
 
 The [indexing and slicing contract](indexing.md) defines negative-index
 normalization, slice extent formulas, negative strides, bounds failure, rank
@@ -412,11 +422,10 @@ shared, and other memory spaces. PyCuTe calls the same conceptual part an
 and provides `Ptr`, `Array`, `ImplicitAccessor`, and
 `TransformAccessor`.
 
-`Layout` owns the logical domain and coordinate-to-index map. It is a congruent
-hierarchical `Shape:Stride` pair, possibly composed with another Layout or a
-swizzle. An index has no storage meaning until an Engine consumes it. An Engine
-without a Layout has no multidimensional logical domain. Both parts are
-therefore necessary at any general tensor boundary.
+`Layout` owns the logical domain and coordinate-to-index map. Its affine form is
+a congruent hierarchical `Shape:Stride` pair. Its composed form retains an
+outer map, internal offset, and inner Layout exactly. An index has no storage
+meaning until an Engine consumes it. Both parts remain necessary.
 
 Zop retains this division rather than adding an `origin` field:
 
@@ -424,25 +433,24 @@ Zop retains this division rather than adding an `origin` field:
   mutability, and tagged address space.
 - The Engine's dynamic state contains the iterator or owned storage required by
   that profile.
-- The Layout profile is the static nested structure of `Shape`, `Stride`, and
-  any composition or swizzle.
+- The Layout profile is the static nested structure of any affine or composed
+  expression.
 - Dynamic Layout leaves instantiate that profile.
 - Zop ownership metadata records the `Mem` authority or borrow origin that
   keeps the Engine valid. It is checked language state, not CuTe indexing data.
 
-Slicing demonstrates why no separate origin belongs in the ABI. [CuTe
-evaluates](https://github.com/NVIDIA/cutlass/blob/6c68991985ca8b09594ac6fd43abbfd5830c4140/include/cute/tensor_impl.hpp#L230-L254)
-the partial coordinate, advances `data()` or the Accessor by that offset, and
-constructs a new tensor from the advanced Engine plus residual Layout:
+Slicing demonstrates why no separate origin belongs in the ABI. CuTe returns a
+residual layout and an external displacement whose composition preserves the
+parent map:
 
 ```text
-offset, residual_layout = slice_and_offset(coordinate, tensor.layout)
-result = Tensor(tensor.engine + offset, residual_layout)
+residual_layout, engine_delta = slice_and_offset(coordinate, tensor.layout)
+result = Tensor(tensor.engine + engine_delta, residual_layout)
 ```
 
-The result's Engine already points at logical coordinate zero. Storing the old
-Engine plus another origin would duplicate the same fact and make chained
-slices accumulate redundant metadata.
+Affine slices normally advance the Engine. Nonlinear compositions may retain
+the fixed contribution in the residual Layout's internal offset. A separate
+origin would still duplicate Engine state.
 
 The Engine profile, Layout profile, hierarchy, static leaves, repeated symbolic
 identities, and derived algebra remain compiler metadata. Runtime ABI fields
@@ -600,14 +608,14 @@ Printing a device tensor never downloads it implicitly. Source first performs
 an explicit CPU transfer and synchronization. Host `print` is illegal inside a
 `kn` kernel.
 
-Printing a `Layout` emits only canonical `Shape:Stride` text. Rich offset grids,
-thread/value ownership, Scalable Vector Graphics (SVG), and memory-bank
-coloring remain explicit toolchain queries through `zop layout show`.
+Printing an affine `Layout` emits `Shape:Stride`. A composition prints
+`outer o {offset} o inner`. Rich grids and memory-bank coloring remain explicit
+`zop layout show` queries.
 
 ## Inspection and visualization
 
-The core formatter renders every layout in canonical `Shape:Stride` form.
-Tooling uses the compiler query rather than reimplementing the algebra:
+The formatter renders affine and composed canonical forms. Tooling uses the
+compiler query rather than reimplementing the algebra:
 
 ```sh
 zop layout show package.module.value
@@ -621,9 +629,9 @@ Scalable Vector Graphics (SVG). A static Engine and Layout profile can be
 inspected without running the program. Dynamic state and leaves remain symbolic
 unless the command receives concrete values.
 
-`check` reports congruence, compactness, injectivity, codomain bounds,
-divisibility, vectorization, coalescing, and possible bank conflicts. Tooling
-reports compiler facts; it never changes the program's layout.
+`check` reports form, functional equality, compactness, injectivity, addressed
+bounds, gaps, divisibility, vectorization, coalescing, and possible bank
+conflicts under explicit target geometry. Tooling never changes the layout.
 
 ## Lowering contract
 
@@ -632,9 +640,9 @@ reference interpreter evaluates their composition directly.
 Central processing unit (CPU) lowering emits equivalent Cranelift integer
 operations. GPU lowering maps the same types and operations to CuTe IR.
 
-PyCuTe supplies executable reference behavior and test vectors. Zop does not
-depend on Python at build or runtime: generated fixtures are reviewed and
-checked into the conformance corpus.
+PyCuTe and `tensor-layouts` supply independent executable behavior and test
+vectors. Generated fixtures are reviewed and checked in; Python is not a build
+or runtime dependency.
 
 ## Required tests
 
@@ -648,6 +656,10 @@ checked into the conformance corpus.
   shapes and zero strides without allocation.
 - Reject implicit broadcasting that would require a runtime shape guess.
 - Preserve layout and storage through every zero-copy view operation.
+- Preserve every parent address when slicing affine and nonlinear composed
+  layouts, including swizzles with nonzero internal offsets.
+- Reject `.stride` on a composed layout without an affine proof.
+- Keep `cosize` distinct from exact addressed storage bounds.
 - Match the indexing corpus for integer, negative, partial, strided, reversed,
   empty, and recoverable accesses.
 - Reject a tensor access outside its shape or backing storage.
@@ -668,6 +680,9 @@ checked into the conformance corpus.
 - Match explicit `relayout` results across CPU and GPU targets.
 - Prove every SIMD lane address from Engine and Layout, including contiguous,
   strided, reversed, broadcast, and hierarchical cases.
+- Round-trip eligible bit-linear layouts through GF(2) matrices and reject
+  offsets that introduce integer carries.
+- Prove thread/value coverage for every registered hardware atom.
 
 ## References
 
@@ -679,6 +694,7 @@ checked into the conformance corpus.
 - [PyCuTe tensor examples](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/05_tensor.md)
 - [PyCuTe layout algebra](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/04_layout_algebra.md)
 - [PyCuTe visualization](https://github.com/NVlabs/CuTe/blob/f14cb1062f8bbdeeded8f6d52b04dbdea7092a32/docs/07_visualization.md)
+- [`tensor-layouts` reference implementation](https://github.com/jduprat/tensor-layouts/tree/d9f51a435c02eb600a05f72508e681bd33dadee9)
 - [CUTLASS CuTe layout documentation](https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/cute/01_layout.md)
 - [CUTLASS CuTe Tensor and Engine documentation](https://github.com/NVIDIA/cutlass/blob/6c68991985ca8b09594ac6fd43abbfd5830c4140/media/docs/cpp/cute/03_tensor.md)
 - [CUTLASS CuTe Tensor implementation](https://github.com/NVIDIA/cutlass/blob/6c68991985ca8b09594ac6fd43abbfd5830c4140/include/cute/tensor_impl.hpp)

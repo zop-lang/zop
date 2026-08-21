@@ -51,17 +51,17 @@ arithmetic progression. Applying either operation to a layout produces:
 
 ```text
 View {
-    engine:        source Engine advanced by the selected offset,
+    engine:        source Engine plus any proven external displacement,
     layout:        residual coordinate mapping,
     borrow_origin: Zop owner and lifetime,
 }
 ```
 
-The advanced Engine already points at the view's logical coordinate zero. Zop
-does not retain the old Engine plus a duplicate origin offset. This follows
-CUTLASS CuTe's `Tensor<Engine, Layout>` model and PyCuTe's equivalent
-`Tensor(Accessor, Layout)` reference model, with ownership and bounds proof added
-by the language.
+The Engine displacement and residual Layout together reproduce every selected
+parent address. Affine slices normally advance the Engine. A nonlinear
+composition may retain the fixed contribution as an internal Layout offset.
+Zop adds no duplicate tensor origin field. See the
+[layout-expression contract](layout-expressions.md#slicing-and-offsets).
 
 ## Canonical tensor queries
 
@@ -85,9 +85,9 @@ The terms have non-overlapping meanings:
 - `shape` is the ordered tuple of logical extents.
 - `extent axis=i` is the number of positions on one logical axis.
 - `numel()` is the product of all logical extents.
-- `layout.cosize` describes the size of a finite nonnegative scalar codomain,
-  the set of offsets a layout can produce, when that quantity is defined. It is
-  not the tensor's logical element count.
+- `layout.cosize` describes the size of a layout function's codomain when
+  defined. The codomain is not necessarily the exact set of visited offsets,
+  and `cosize` is not a universal storage-bound proof.
 
 There is no tensor `.length`, `.len()`, `.size`, or `.count()` alias. Sequence
 length usually means the leading extent, layout size can mean a storage span,
@@ -359,8 +359,9 @@ view.axis.extent  = selected coordinate count
 view.axis.stride  = d * s
 ```
 
-Other axes retain their Shape and Stride. An integer selection advances the
-Engine and removes the selected axis from the residual Layout.
+Other axes retain their Shape and Stride. In this affine case, an integer
+selection advances the Engine and removes the selected axis. General composed
+selection follows the exact `slice_and_offset` identity.
 
 For example:
 
@@ -435,8 +436,8 @@ the runtime type of an index happened to differ.
 ## General layout views
 
 Slicing is only one way to derive a view. A compiler-verified general view may
-pair an existing or advanced Engine with another `Layout`. Its exact
-surface spelling remains provisional, but its safety contract is fixed:
+pair an existing or advanced Engine with an affine or composed `Layout`. Its
+exact surface spelling remains provisional, but its safety contract is fixed:
 
 1. Every live logical coordinate maps within the source storage allocation.
 2. The view records and cannot outlive the Zop owner from which its Engine is
@@ -531,7 +532,8 @@ TensorSelect {
     source_engine,
     result_engine,
     source_layout,
-    result_layout,
+    result_layout: Affine | Compose,
+    external_engine_delta,
     borrow_origin,
     bounds_proof_or_check,
     mutability,
@@ -545,6 +547,9 @@ Valid HIR satisfies these invariants:
 - Every slice has a nonzero step and a derived nonnegative result extent.
 - Every removed axis came from an integer selector.
 - Every retained axis has one explicit residual layout mode.
+- Every selection proves parent and residual address equivalence for every live
+  coordinate.
+- A fixed contribution crosses an outer map only when the rewrite is exact.
 - Every access is proven or guarded against both logical and storage bounds.
 - Every view has one valid borrow origin.
 - Every mutable view is injective and exclusive.

@@ -77,6 +77,10 @@ when producing addresses and memory references. Fully static profiles remain
 metadata; dynamic Engine state and Layout leaves become ordinary static
 single-assignment (SSA) values.
 
+HIR distinguishes affine layouts from exact composed layouts. A composed node
+retains its outer map, internal offset, and inner layout. Slice HIR records any
+external Engine displacement and proves residual-parent address equivalence.
+
 Tensor literals lower to dense constants when every element is known during
 compilation. Tensor operations lower to standard `tensor` and `linalg`
 operations. Tuples and records normally flatten to multiple static
