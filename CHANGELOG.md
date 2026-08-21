@@ -10,6 +10,10 @@ declared stable; before 1.0, each release documents its compatibility boundary.
   project-owned work under Apache-2.0.
 - Bootstrap the Rust stage-0 frontend, typed HIR, MLIR verification, Cranelift
   execution and object emission, and deterministic ECMAScript subset.
+- Make MLIR a first-class compiler layer with verifier-gated canonicalization
+  and common-subexpression elimination before backend translation.
+- Reserve `0.0.x` for internal checkpoints and require an installable, usable
+  scalar language before the first public `0.1.0` binary release.
 - Add executable affine and composed Layout evaluation and slicing semantics.
 - Establish the canonical language, tensor-layout, target, tooling,
   self-hosting, and release contracts.

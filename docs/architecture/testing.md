@@ -7,8 +7,8 @@ Passing one backend or one happy-path program is not enough.
 
 The bootstrap tests lexer layout and rejection rules, parser structure and
 error recovery, scalar type checking, affine and composed Layout evaluation
-and slicing, verified Multi-Level Intermediate Representation (MLIR) emission,
-contextual numeric literals, direct calls,
+and slicing, verified Multi-Level Intermediate Representation (MLIR) emission
+and scalar canonicalization, contextual numeric literals, direct calls,
 forward signature resolution, direct and mutual recursive signature cycles,
 local assignments, typed just-in-time (JIT) invocation, and native object
 emission. It also covers deterministic ECMAScript emission, exact `i32`
@@ -17,6 +17,10 @@ effect-preserving elimination, malformed high-level intermediate representation
 (HIR), and JavaScript target rejection. One test executes generated machine
 code and proves `20 + 22 == 42`. The suite also proves that a `kn` kernel cannot
 fall back to the central processing unit (CPU) or JavaScript backend.
+
+One MLIR invariant proves repeated pure scalar expressions collapse under the
+verifier-enabled canonicalization and common-subexpression-elimination pipeline
+before textual MLIR or a backend can observe the module.
 
 The web conformance suite parses the machine-readable
 [browser profile](../standards/web/README.md), rejects unsupported claims, bans
@@ -265,8 +269,9 @@ elimination.
 | SIMD | Scalar equivalence, legality, reason codes, tails, MLIR, CLIF, target instructions, and crossover |
 | Callables | Members, calls, captures, lifetimes, and dispatch |
 | Errors | Typed channels, mandatory handling, propagation, and recovery |
-| Typed frontend intermediate representation to MLIR | Verified MLIR and canonical golden output |
-| MLIR lowering | No high-level operation survives the base boundary |
+| Typed frontend intermediate representation to MLIR | Verified emitted MLIR and canonical golden output |
+| MLIR passes | Verification after every pass, semantic preservation, structural simplification, and measured compile-time cost |
+| MLIR lowering | No high-level operation survives the CLIF-ready boundary |
 | MLIR to Cranelift intermediate representation (CLIF) | Verified CLIF and differential interpreter results |
 | Native interface | 0-8 arguments, recursion, callbacks, and alignment |
 | Input and output | Deterministic effects, flush, close, and cancellation |

@@ -1,19 +1,25 @@
 # Backend
 
-The backend translates restricted Multi-Level Intermediate Representation
-(MLIR) to Cranelift intermediate representation (CLIF). Cranelift then emits
-central processing unit (CPU) machine code. Rust owns this layer because
-Cranelift's supported interface is a Rust application programming interface
-(API). Melior provides Rust access to MLIR.
+The backend consumes restricted, verified Multi-Level Intermediate
+Representation (MLIR) and translates it to Cranelift intermediate
+representation (CLIF). Cranelift then emits central processing unit (CPU)
+machine code. The separate [MLIR layer](ir.md) owns emission and transformation;
+the backend never reaches around it to lower high-level intermediate
+representation (HIR) directly. Rust owns this backend because Cranelift's
+supported interface is a Rust application programming interface (API). Melior
+provides Rust access to MLIR.
 
 ## Implemented bootstrap
 
-The current backend consumes the verified in-memory MLIR module. It translates
-supported host `fn` operations over `i64` into one shared scalar form. It then
-emits either a Cranelift `JITModule` or `ObjectModule`. Direct calls and local
-assignments are covered end to end. Typed just-in-time (JIT) invocation supports
-zero, one, or two `i64` arguments. It checks the function signature before
-entering its isolated unsafe call boundary.
+The current MLIR layer emits `func` and `arith`, verifies the emitted module,
+runs canonicalization and common-subexpression elimination with the MLIR pass
+manager verifier enabled, and verifies the transformed module again. The
+backend translates the resulting host `fn` operations over `i64` into one
+shared scalar form. It then emits either a Cranelift `JITModule` or
+`ObjectModule`. Direct calls and local assignments are covered end to end.
+Typed just-in-time (JIT) invocation supports zero, one, or two `i64` arguments.
+It checks the function signature before entering its isolated unsafe call
+boundary.
 
 The bootstrap arithmetic path does not yet emit the language's overflow traps.
 Its implemented claim therefore covers non-overflowing executions only;

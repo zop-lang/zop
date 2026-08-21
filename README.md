@@ -47,17 +47,19 @@ binds those gates to GitHub milestones and cargo-dist publication.
 ## Compiler bootstrap
 
 The unreleased bootstrap package is version `0.0.1`. The
-[0.1.0 roadmap milestone](docs/architecture/roadmap.md#010-bootstrap) remains an
-earned capability gate rather than a version implied by merging code.
+[0.1.0 roadmap milestone](docs/architecture/roadmap.md#010-usable-scalar-language)
+is the first public binary release. `0.0.x` artifacts are internal compiler
+checkpoints, not supported language releases or versions implied by merging
+code.
 
 The current Rust bootstrap implements indentation-aware lexing, parsing,
 scalar name and type checking, typed high-level intermediate representation,
 flat affine and composed Layout evaluation and slicing, deterministic
-ECMAScript modules, verified MLIR, and Cranelift just-in-time and object code
-generation. The JavaScript slice accepts exact `i32`, `f64`,
-`bool`, string, and unit representations. The native executable slice accepts
-only host `fn` code over `i64` while the contracts for tensors, ownership,
-effects, errors, and GPU kernels mature.
+ECMAScript modules, a verifier-gated MLIR scalar pass pipeline, and Cranelift
+just-in-time and object code generation. The JavaScript slice accepts exact
+`i32`, `f64`, `bool`, string, and unit representations. The native executable
+slice accepts only host `fn` code over `i64` while the contracts for tensors,
+ownership, effects, errors, and GPU kernels mature.
 
 Building requires Rust 1.95 and LLVM/MLIR 22. On macOS, `brew install llvm`
 provides the required toolchain.
