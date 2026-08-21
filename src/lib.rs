@@ -15,5 +15,6 @@ pub mod frontend;
 pub mod hir;
 pub mod layout;
 pub mod lexer;
+pub mod mlir;
 pub mod source;
 pub mod syntax;

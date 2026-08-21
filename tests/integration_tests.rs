@@ -3,7 +3,7 @@
 
 //! Public compiler pipeline integration tests.
 
-use zop::{backend::mlir_text, frontend::analyze};
+use zop::{frontend::analyze, mlir::mlir_text};
 
 #[test]
 fn source_reaches_verified_mlir_through_the_public_api() {

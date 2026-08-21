@@ -6,13 +6,11 @@
 //! Typed frontend output reaches Cranelift only through the verified MLIR boundary.
 
 mod cranelift;
-mod error;
+pub(crate) mod error;
 mod ffi;
 mod javascript;
-mod mlir;
 mod scalar;
 mod translate;
 
 pub use cranelift::{JitArtifact, compile_jit, compile_object};
 pub use javascript::javascript_text;
-pub use mlir::mlir_text;

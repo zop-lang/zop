@@ -3,7 +3,7 @@
 
 //! Multi-Level Intermediate Representation lowering boundary tests.
 
-use zop::{backend::mlir_text, frontend::analyze};
+use zop::{frontend::analyze, mlir::mlir_text};
 
 #[test]
 fn scalar_hir_emits_verified_mlir() {
@@ -57,4 +57,14 @@ fn named_arguments_evaluate_in_source_order_before_parameter_placement() {
     assert!(second < first);
     assert!(first < subtract);
     assert!(main.contains("call @subtract(%1, %0)"));
+}
+
+#[test]
+fn pure_scalar_mlir_is_canonicalized_before_leaving_the_layer() {
+    let source = "fn answer -> i64\n    (20 + 22) + (20 + 22)\n";
+    let hir = analyze(source).expect("source should type-check");
+    let mlir = mlir_text(&hir).expect("MLIR should verify after its pass pipeline");
+
+    assert!(mlir.contains("arith.constant 84"));
+    assert!(!mlir.contains("arith.addi"));
 }

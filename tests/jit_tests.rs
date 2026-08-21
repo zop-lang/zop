@@ -15,6 +15,15 @@ fn cranelift_jit_executes_the_verified_scalar_module() {
 }
 
 #[test]
+fn scalar_mlir_passes_preserve_execution() {
+    let source = "fn answer -> i64\n    (20 + 22) + (20 + 22)\n";
+    let hir = analyze(source).expect("source should type-check");
+    let jit = compile_jit(&hir).expect("optimized MLIR should compile");
+
+    assert_eq!(jit.invoke_i64("answer", &[]).expect("call should succeed"), 84);
+}
+
+#[test]
 fn calls_and_local_assignments_survive_the_full_pipeline() {
     let source = concat!(
         "fn twice value: i64 -> i64\n",
