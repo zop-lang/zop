@@ -263,3 +263,62 @@ translation; conversion rejects it unless a stronger proof removes the carries.
 
 This provides a bridge to Triton-style linear layouts without replacing CuTe
 `Engine + Layout` as the source model.
+
+## Hardware atoms
+
+Matrix-multiply and copy instructions enter the backend through target data:
+
+```text
+MmaAtom {
+    instruction,
+    shape_mnk,
+    a_thread_value_layout,
+    b_thread_value_layout,
+    c_thread_value_layout,
+    element_types,
+    target_features,
+}
+
+CopyAtom {
+    instruction,
+    source_thread_value_layout,
+    destination_thread_value_layout,
+    element_types,
+    target_features,
+}
+```
+
+Atoms are compiler-known instruction descriptions, not tensor types or kernel
+syntax. The initial registry derives from vendor specifications and is checked
+against executable oracles for NVIDIA, AMD, Intel Xe, and Intel Advanced Matrix
+Extensions (AMX) where those tools are available.
+
+## Conformance
+
+CUTLASS CuTe remains normative. PyCuTe and `tensor-layouts` are independent
+executable references. Zop generates small fixtures outside the build and
+checks reviewed results into the repository. A compiler build never imports
+Python or downloads an oracle.
+
+Required cases include:
+
+- affine versus composed structural and functional equality;
+- slicing before and after a swizzle with internal nonzero offsets;
+- parent and residual address equivalence at every coordinate;
+- composed `.stride` rejection and `cosize` versus addressed bounds;
+- inverse-form negative offsets and unsupported nonlinear operations;
+- GF(2) round trips for eligible layouts and rejection otherwise;
+- thread/value coverage for every registered atom; and
+- bank-conflict and coalescing reports under actual target geometry.
+
+## Further references
+
+<!-- markdownlint-disable MD013 -->
+
+- [CUTLASS CuTe layout definitions](https://github.com/NVIDIA/cutlass/blob/7107b05535f8977f5ecb9d01ee203205b1fd9bc4/media/docs/cpp/cute/01_layout.md)
+- [`tensor-layouts` composed representation](https://github.com/jduprat/tensor-layouts/blob/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts/layouts/expr.py)
+- [`tensor-layouts` analysis helpers](https://github.com/jduprat/tensor-layouts/blob/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts/analysis.py)
+- [`tensor-layouts` hardware atoms](https://github.com/jduprat/tensor-layouts/tree/d9f51a435c02eb600a05f72508e681bd33dadee9/src/tensor_layouts)
+- [Linear Layouts paper](https://arxiv.org/abs/2505.23819)
+
+<!-- markdownlint-enable MD013 -->

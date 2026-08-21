@@ -580,13 +580,21 @@ a strict lowering boundary to upstream MLIR dialects and NVIDIA Virtual Machine
 executable reference implementation of the same algebra plus layout, tensor,
 copy, contraction, and visualization examples.
 
+Jean-Luc Duprat's MIT-licensed
+[`tensor-layouts`](https://github.com/jduprat/tensor-layouts/tree/d9f51a435c02eb600a05f72508e681bd33dadee9)
+provides a second implementation, exact composed slicing, GF(2) analysis, and
+multi-vendor atom catalogs. Zop uses it as an independent oracle and backend
+fixture source, not as authority over CUTLASS CuTe.
+
 Zop adopts CUTLASS CuTe's `Tensor<Engine, Layout>` model as a language-native
 contract on every target. Engine wraps the iterator or owned array; Layout maps
 logical coordinates to Engine indices. PyCuTe calls its reference equivalent
 `Tensor(Accessor, Layout)`. CPU code evaluates the algebra through Cranelift,
 while `kn` code preserves it into CuTe IR. Zop adds checked bounds, ownership,
 borrow origins, mutation rules, typed dynamic failures, and cross-target
-conformance without inventing a third ABI origin field.
+conformance without inventing a third ABI origin field. A composed Layout may
+retain an internal offset before a nonlinear map; that offset is coordinate
+algebra rather than Engine or ownership state.
 
 The [CuTe layout paper](https://arxiv.org/abs/2603.02298) explains why a
 hierarchical Shape and Stride must extend traditional flat tensor descriptors

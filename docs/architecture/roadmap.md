@@ -81,8 +81,9 @@ This is the current Rust stage-0 scope.
   half-open basic slices, recoverable `at`, residual layouts, bounds proof, and
   zero-copy descriptor construction with clipped brackets and named strict
   slicing.
-- Implement the language-native [Layout](layouts.md), zero-copy views, pure
-  layout algebra, and interpreter conformance against PyCuTe fixtures.
+- Implement language-native affine and
+  [composed Layout expressions](layout-expressions.md), exact zero-copy views,
+  pure algebra, and conformance across CUTLASS CuTe, PyCuTe, and `tensor-layouts`.
 - Lower elementwise operations and matrix multiplication through MLIR tensor,
   Linalg tiling, upstream structured vectorization, bufferization, and
   deallocation passes.
@@ -125,6 +126,8 @@ This is the current Rust stage-0 scope.
   explicit native feature variants, and freeze the portable `core.simd` surface.
 - Compile `kn` through one production GPU toolchain with explicit placement,
   launch, transfer, and lifetime checks.
+- Ship one vendor-checked matrix-multiply and copy atom registry plus GF(2)
+  analysis for eligible bit-linear thread/value layouts.
 - Implement kernel-local failure handling, context-invalidating device traps,
   `DeviceError` host reporting, invalid-allocation rejection, and explicit
   context reconstruction.
